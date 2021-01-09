@@ -5,21 +5,21 @@ import (
 	"subd/dz/models"
 )
 
-func InsertPost(post models.Post) (models.Post, error) {
-	p := models.Post{}
+func InsertPost(p *models.Post) error {
 	err := models.DB.QueryRow("INSERT INTO posts(author, created, forum, message, parent, thread) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;",
-		post.Author, post.Created, post.Forum, post.Message, post.Parent, post.Thread).
+		p.Author, p.Created, p.Forum, p.Message, p.Parent, p.Thread).
 		Scan(&p.Author, &p.Created, &p.Forum, &p.ID, &p.IsEdited, &p.Message, &p.Parent, &p.Thread, &p.Path)
-	return p, err
+
+	return err
 }
 
-func CheckPostByThread(post models.Post) bool {
+func CheckPostByThread(post int) bool {
 	var count int
-	models.DB.QueryRow("SELECT COUNT(*) FROM posts WHERE thread = $1;", post.Thread).Scan(&count)
-	return count > 0
+	err := models.DB.QueryRow("SELECT thread FROM posts WHERE thread = $1;", post).Scan(&count)
+	return err == nil
 }
 
-func FindPosts(author string, limit, since int, sort string, desc bool) (models.Posts, error) {
+func FindPosts(author string, limit, since int, sort string, desc bool) (*models.Posts, error) {
 	posts := models.Posts{}
 
 	i := 2
@@ -81,7 +81,7 @@ func FindPosts(author string, limit, since int, sort string, desc bool) (models.
 	rows, err := models.DB.Query(sqlRec, values...)
 
 	if err != nil {
-		return posts, err
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -90,27 +90,27 @@ func FindPosts(author string, limit, since int, sort string, desc bool) (models.
 	for rows.Next() {
 		err = rows.Scan(&p.Author, &p.Created, &p.Forum, &p.ID, &p.Message, &p.Parent, &p.Thread)
 		if err != nil {
-			return posts, err
+			return nil, err
 		}
 
 		posts = append(posts, p)
 	}
-	return posts, nil
+	return &posts, nil
 }
 
-func FindByID(id int) (models.Post, error) {
+func FindByID(id int) (*models.Post, error) {
 	post := models.Post{}
 	err := models.DB.QueryRow("SELECT author, created, forum, id, is_edited, message, parent, thread FROM posts WHERE id = $1;", id).
 		Scan(&post.Author, &post.Created, &post.Forum, &post.ID, &post.IsEdited, &post.Message, &post.Parent, &post.Thread)
 
-	return post, err
+	return &post, err
 }
 
-func UpdatePost(post models.Post, postUpdate models.PostUpdate) (models.Post, error) {
+func UpdatePost(post *models.Post, postUpdate models.PostUpdate) error {
 	if postUpdate.Message != "" && postUpdate.Message != post.Message {
 		err := models.DB.QueryRow("UPDATE posts SET message=$1, is_edited=true WHERE id=$2 RETURNING *;", postUpdate.Message, post.ID).
 			Scan(&post.Author, &post.Created, &post.Forum, &post.ID, &post.IsEdited, &post.Message, &post.Parent, &post.Thread, &post.Path)
-		return post, err
+		return err
 	}
-	return post, nil
+	return nil
 }

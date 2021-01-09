@@ -33,12 +33,12 @@ func Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	forum, err := forumRep.FindForum(slug)
-	if err == sql.ErrNoRows {
-		w.WriteHeader(http.StatusNotFound)
-		w.Write(models.MarshalErrorSt("Can't find thread forum"))
-		return
-	}
 	if err != nil {
+		if err == sql.ErrNoRows {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write(models.MarshalErrorSt("Can't find thread forum"))
+			return
+		}
 		log.Println(err)
 		return
 	}
@@ -65,7 +65,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	thread.Forum = forum.Slug
-	thread, err = threadRep.InsertThread(thread)
+	err = threadRep.InsertThread(&thread)
 	if err != nil {
 		log.Println(err)
 		return
@@ -100,61 +100,26 @@ func Vote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	thread := models.Thread{}
+	var thread *models.Thread
 	id, errInt := strconv.Atoi(slugOrID)
-	if errInt != nil {
-		slug := slugOrID
 
-		thread, err = threadRep.FindThread(slug)
+	if errInt != nil {
+		thread, err = threadRep.FindThread(slugOrID)
+	} else {
+		thread, err = threadRep.FindThreadByID(id)
+	}
+
+	if err != nil {
 		if err == sql.ErrNoRows {
 			w.WriteHeader(http.StatusNotFound)
-			w.Write(models.MarshalErrorSt("Can't find thread by slug"))
+			w.Write(models.MarshalErrorSt("Can't find thread"))
 			return
 		}
-
-		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		vote.Thread = thread.ID
-		err = threadRep.InsertVote(vote)
-		if err != nil {
-			err = threadRep.UpdateVote(vote)
-			if err != nil {
-				log.Println(err)
-				return
-			}
-		}
-
-		threadUpdate, err := threadRep.FindThread(thread.Slug)
-		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		if threadUpdate.Votes < 0 {
-			threadUpdate.Votes *= -1
-		}
-
-		body, err := json.Marshal(threadUpdate)
-		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-		w.Write(body)
+		log.Println(err)
 		return
 	}
 
-	if !threadRep.CheckThreadByID(id) {
-		w.WriteHeader(http.StatusNotFound)
-		w.Write(models.MarshalErrorSt("Can't find thread by id"))
-		return
-	}
-
-	vote.Thread = id
+	vote.Thread = thread.ID
 	err = threadRep.InsertVote(vote)
 	if err != nil {
 		err = threadRep.UpdateVote(vote)
@@ -164,10 +129,14 @@ func Vote(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	threadUpdate, err := threadRep.FindThreadByID(id)
+	threadUpdate, err := threadRep.FindThreadByID(thread.ID)
 	if err != nil {
 		log.Println(err)
 		return
+	}
+
+	if threadUpdate.Votes < 0 {
+		threadUpdate.Votes *= -1
 	}
 
 	body, err := json.Marshal(threadUpdate)
@@ -186,7 +155,7 @@ func Details(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	slugOrID := vars["slug_or_id"]
 
-	thread := models.Thread{}
+	var thread *models.Thread
 	id, errInt := strconv.Atoi(slugOrID)
 	var err error
 	if errInt != nil {
@@ -194,12 +163,13 @@ func Details(w http.ResponseWriter, r *http.Request) {
 	} else {
 		thread, err = threadRep.FindThreadByID(id)
 	}
-	if err == sql.ErrNoRows {
-		w.WriteHeader(http.StatusNotFound)
-		w.Write(models.MarshalErrorSt("Can't find thread"))
-		return
-	}
+
 	if err != nil {
+		if err == sql.ErrNoRows {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write(models.MarshalErrorSt("Can't find thread"))
+			return
+		}
 		log.Println(err)
 		return
 	}
@@ -222,7 +192,7 @@ func Details(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	thread, err = threadRep.UpdateThread(thread, threadUpdate)
+	err = threadRep.UpdateThread(thread, threadUpdate)
 	if err != nil {
 		log.Println(err)
 		return

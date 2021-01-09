@@ -21,7 +21,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	slugOrID := vars["slug_or_id"]
 
-	thread := models.Thread{}
+	var thread *models.Thread
 	var err error
 	id, errInt := strconv.Atoi(slugOrID)
 	if errInt != nil {
@@ -29,12 +29,13 @@ func Create(w http.ResponseWriter, r *http.Request) {
 	} else {
 		thread, err = threadRep.FindThreadByID(id)
 	}
-	if err == sql.ErrNoRows {
-		w.WriteHeader(http.StatusNotFound)
-		w.Write(models.MarshalErrorSt("Can't find post thread"))
-		return
-	}
+
 	if err != nil {
+		if err == sql.ErrNoRows {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write(models.MarshalErrorSt("Can't find post thread"))
+			return
+		}
 		log.Println(err)
 		return
 	}
@@ -56,7 +57,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 		}
 
 		post.Thread = thread.ID
-		if post.Parent.Int64 != 0 && !postRep.CheckPostByThread(post) {
+		if post.Parent.Int64 != 0 && !postRep.CheckPostByThread(post.Thread) {
 			w.WriteHeader(http.StatusConflict)
 			w.Write(models.MarshalErrorSt("Parent post was created in another thread"))
 			return
@@ -68,7 +69,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 		post.Thread = thread.ID
 		post.Forum = thread.Forum
 
-		post, err = postRep.InsertPost(post)
+		err = postRep.InsertPost(&post)
 		if err != nil {
 			log.Println(err)
 			return
@@ -109,19 +110,20 @@ func ThreadPosts(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	slugOrID := vars["slug_or_id"]
 
-	thread := models.Thread{}
+	var thread *models.Thread
 	id, errInt := strconv.Atoi(slugOrID)
 	if errInt != nil {
 		thread, err = threadRep.FindThread(slugOrID)
 	} else {
 		thread, err = threadRep.FindThreadByID(id)
 	}
-	if err == sql.ErrNoRows {
-		w.WriteHeader(http.StatusNotFound)
-		w.Write(models.MarshalErrorSt("Can't find thread"))
-		return
-	}
+
 	if err != nil {
+		if err == sql.ErrNoRows {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write(models.MarshalErrorSt("Can't find thread"))
+			return
+		}
 		log.Println(err)
 		return
 	}
@@ -155,12 +157,13 @@ func Details(w http.ResponseWriter, r *http.Request) {
 	related := r.URL.Query().Get("related")
 
 	post, err := postRep.FindByID(id)
-	if err == sql.ErrNoRows {
-		w.WriteHeader(http.StatusNotFound)
-		w.Write(models.MarshalErrorSt("Can't find post by id"))
-		return
-	}
+
 	if err != nil {
+		if err == sql.ErrNoRows {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write(models.MarshalErrorSt("Can't find post by id"))
+			return
+		}
 		log.Println(err)
 		return
 	}
@@ -168,33 +171,34 @@ func Details(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		postFull := models.PostFull{}
 		if strings.Contains(related, "user") {
-			user, err := userRep.FindByPost(id)
+			user, err := userRep.FindByNickname(post.Author)
 			if err != nil {
 				log.Println(err)
 				return
 			}
-			postFull.Author = &user
+			postFull.Author = user
 		}
 
 		if strings.Contains(related, "forum") {
-			forum, err := forumRep.FindByPost(id)
+			forum, err := forumRep.FindForum(post.Forum)
 			if err != nil {
 				log.Println(err)
 				return
 			}
-			postFull.Forum = &forum
+			postFull.Forum = forum
 		}
 
 		if strings.Contains(related, "thread") {
-			thread, err := threadRep.FindByPost(id)
+			thread, err := threadRep.FindThreadByID(post.Thread)
 			if err != nil {
 				log.Println(err)
 				return
 			}
-			postFull.Thread = &thread
+
+			postFull.Thread = thread
 		}
 
-		postFull.Post = &post
+		postFull.Post = post
 
 		body, err := json.Marshal(postFull)
 		if err != nil {
@@ -214,7 +218,7 @@ func Details(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	post, err = postRep.UpdatePost(post, postUpdate)
+	err = postRep.UpdatePost(post, postUpdate)
 	if err != nil {
 		log.Println(err)
 		return

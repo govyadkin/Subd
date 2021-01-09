@@ -11,33 +11,16 @@ func InsertForum(forum models.Forum) error {
 }
 
 func CheckForum(slug string) bool {
-	var count int
-	models.DB.QueryRow("SELECT COUNT(*) FROM forums WHERE slug ILIKE $1;", slug).Scan(&count)
-	return count > 0
+	var slug2 string
+	err := models.DB.QueryRow("SELECT slug FROM forums WHERE slug ILIKE $1;", slug).Scan(&slug2)
+	return err == nil
 }
 
-func FindForum(slug string) (models.Forum, error) {
+func FindForum(slug string) (*models.Forum, error) {
 	f := models.Forum{}
 	err := models.DB.QueryRow("SELECT username, posts, threads, slug, title FROM forums WHERE slug ILIKE $1;", slug).
 		Scan(&f.User, &f.Posts, &f.Threads, &f.Slug, &f.Title)
-	return f, err
-}
-
-func FindByPost(id int) (models.Forum, error) {
-	forum := models.Forum{}
-
-	err := models.DB.QueryRow("SELECT forum FROM posts WHERE id = $1;", id).
-		Scan(&forum.Slug)
-	if err != nil {
-		return forum, err
-	}
-
-	forum, err = FindForum(forum.Slug)
-	if err != nil {
-		return forum, err
-	}
-
-	return forum, nil
+	return &f, err
 }
 
 func ClearForum() error {

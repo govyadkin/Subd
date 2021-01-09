@@ -51,13 +51,13 @@ func Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user, err := userRep.FindByNickname(forum.User)
-	if err == sql.ErrNoRows {
-		w.WriteHeader(http.StatusNotFound)
-		w.Write(models.MarshalErrorSt("Can't find user"))
-		return
-	}
 
 	if err != nil {
+		if err == sql.ErrNoRows {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write(models.MarshalErrorSt("Can't find user"))
+			return
+		}
 		log.Println(err)
 		return
 	}
@@ -105,12 +105,13 @@ func Details(w http.ResponseWriter, r *http.Request) {
 	slug := vars["slug"]
 
 	forum, err := forumRep.FindForum(slug)
-	if err == sql.ErrNoRows {
-		w.WriteHeader(http.StatusNotFound)
-		w.Write(models.MarshalErrorSt("Can't find forum"))
-		return
-	}
+
 	if err != nil {
+		if err == sql.ErrNoRows {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write(models.MarshalErrorSt("Can't find forum"))
+			return
+		}
 		log.Println(err)
 		return
 	}

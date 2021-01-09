@@ -29,7 +29,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(users) > 0 {
+	if len(*users) > 0 {
 		body, err := json.Marshal(users)
 		if err != nil {
 			log.Println(err)
@@ -66,13 +66,12 @@ func Profile(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		user, err := rep.FindByNickname(nickname)
 
-		if err == sql.ErrNoRows {
-			w.WriteHeader(http.StatusNotFound)
-			w.Write(models.MarshalErrorSt("Not fund user"))
-			return
-		}
-
 		if err != nil {
+			if err == sql.ErrNoRows {
+				w.WriteHeader(http.StatusNotFound)
+				w.Write(models.MarshalErrorSt("Can't find user"))
+				return
+			}
 			log.Println(err)
 			return
 		}
@@ -88,12 +87,6 @@ func Profile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !rep.CheckByNickname(nickname) {
-		w.WriteHeader(http.StatusNotFound)
-		w.Write(models.MarshalErrorSt("Can't find user"))
-		return
-	}
-
 	userUpdate := models.UserUpdate{}
 	err := json.NewDecoder(r.Body).Decode(&userUpdate)
 	if err != nil {
@@ -103,12 +96,17 @@ func Profile(w http.ResponseWriter, r *http.Request) {
 
 	if rep.CheckByEmail(userUpdate.Email) {
 		w.WriteHeader(http.StatusConflict)
-		w.Write(models.MarshalErrorSt("This email is already registered"))
+		w.Write(models.MarshalErrorSt("This email is already exist"))
 		return
 	}
 
 	res, err := rep.UpdateUser(nickname, userUpdate)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write(models.MarshalErrorSt("Can't find user"))
+			return
+		}
 		log.Println(err)
 		return
 	}

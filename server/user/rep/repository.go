@@ -14,24 +14,24 @@ func Create(user models.User) error {
 }
 
 func CheckByEmail(email string) bool {
-	var count int
-	models.DB.QueryRow("SELECT COUNT(*) FROM users WHERE email ILIKE $1;", email).Scan(&count)
-	return count > 0
-}
-
-func CheckByNickname(nickname string) bool {
-	var count string
-	err := models.DB.QueryRow("SELECT nickname FROM users WHERE nickname ILIKE $1;", nickname).Scan(&count)
+	var mail string
+	err := models.DB.QueryRow("SELECT email FROM users WHERE email ILIKE $1;", email).Scan(&mail)
 	return err == nil
 }
 
-func ConflictUsers(email, nickname string) (models.Users, error) {
+func CheckByNickname(nickname string) bool {
+	var name string
+	err := models.DB.QueryRow("SELECT nickname FROM users WHERE nickname ILIKE $1;", nickname).Scan(&name)
+	return err == nil
+}
+
+func ConflictUsers(email, nickname string) (*models.Users, error) {
 	users := models.Users{}
 	user := models.User{}
 
 	rows, err := models.DB.Query("SELECT about, email, fullname, nickname FROM users WHERE email ILIKE $1 OR nickname ILIKE $2;", email, nickname)
 	if err != nil {
-		return users, err
+		return nil, err
 	}
 
 	defer rows.Close()
@@ -39,24 +39,24 @@ func ConflictUsers(email, nickname string) (models.Users, error) {
 	for rows.Next() {
 		err = rows.Scan(&user.About, &user.Email, &user.Fullname, &user.Nickname)
 		if err != nil {
-			return users, err
+			return nil, err
 		}
 		users = append(users, user)
 	}
 
-	return users, nil
+	return &users, nil
 }
 
-func FindByNickname(nickname string) (models.User, error) {
+func FindByNickname(nickname string) (*models.User, error) {
 	user := models.User{}
 
 	err := models.DB.QueryRow("SELECT about, email, fullname, nickname FROM users WHERE nickname ILIKE $1;", nickname).
 		Scan(&user.About, &user.Email, &user.Fullname, &user.Nickname)
 
-	return user, err
+	return &user, err
 }
 
-func UpdateUser(nickname string, userUpdate models.UserUpdate) (models.User, error) {
+func UpdateUser(nickname string, userUpdate models.UserUpdate) (*models.User, error) {
 	values := make([]interface{}, 0, 3)
 	i := 1
 	var s string
@@ -84,27 +84,28 @@ func UpdateUser(nickname string, userUpdate models.UserUpdate) (models.User, err
 	}
 	user := models.User{}
 
+	user.Nickname = nickname
+
 	if i > 1 {
-		user.Nickname = nickname
-		sqlRow := "UPDATE users SET" + s + " WHERE nickname=$" + fmt.Sprint(i) + " RETURNING fullname, about, email;"
+		sqlRow := "UPDATE users SET" + s + " WHERE nickname ILIKE $" + fmt.Sprint(i) + " RETURNING fullname, about, email;"
 		values = append(values, nickname)
 		err := models.DB.QueryRow(sqlRow, values...).Scan(&user.Fullname, &user.About, &user.Email)
-		return user, err
+		return &user, err
 	} else {
-		err := models.DB.QueryRow("SELECT about, email, fullname, nickname FROM users WHERE nickname ILIKE $1;", nickname).
-			Scan(&user.About, &user.Email, &user.Fullname, &user.Nickname)
-		return user, err
+		err := models.DB.QueryRow("SELECT about, email, fullname FROM users WHERE nickname ILIKE $1;", nickname).
+			Scan(&user.About, &user.Email, &user.Fullname)
+		return &user, err
 	}
 }
 
-func FindByForum(slug, since string, limit int, desc bool) (models.Users, error) {
+func FindByForum(slug, since string, limit int, desc bool) (*models.Users, error) {
 	users := models.Users{}
 	user := models.User{}
 	var usernames []string
 
 	rows, err := models.DB.Query("SELECT author FROM threads WHERE forum ILIKE $1 UNION SELECT author FROM posts WHERE forum ILIKE $1;", slug)
 	if err != nil {
-		return users, err
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -112,10 +113,11 @@ func FindByForum(slug, since string, limit int, desc bool) (models.Users, error)
 	for rows.Next() {
 		err := rows.Scan(&u)
 		if err != nil {
-			return users, err
+			return nil, err
 		}
 		usernames = append(usernames, u)
 	}
+
 	values := make([]interface{}, 0, 3)
 	sqlRek := `SELECT about, email, fullname, nickname FROM users WHERE nickname = ANY($1) `
 	values = append(values, pq.Array(usernames))
@@ -139,36 +141,17 @@ func FindByForum(slug, since string, limit int, desc bool) (models.Users, error)
 	rows, err = models.DB.Query(sqlRek, values...)
 
 	if err != nil {
-		return users, err
+		return nil, err
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		err = rows.Scan(&user.About, &user.Email, &user.Fullname, &user.Nickname)
 		if err != nil {
-			return users, err
+			return nil, err
 		}
 		users = append(users, user)
 	}
 
-	return users, nil
-}
-
-func FindByPost(id int) (models.User, error) {
-	user := models.User{}
-	var author string
-
-	err := models.DB.QueryRow("SELECT author FROM posts WHERE id = $1;", id).
-		Scan(&author)
-	if err != nil {
-		return user, err
-	}
-
-	err = models.DB.QueryRow("SELECT about, email, fullname, nickname FROM users WHERE nickname ILIKE $1;", author).
-		Scan(&user.About, &user.Email, &user.Fullname, &user.Nickname)
-	if err != nil {
-		return user, err
-	}
-
-	return user, nil
+	return &users, nil
 }
