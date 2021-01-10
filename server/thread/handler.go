@@ -135,8 +135,11 @@ func Vote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if threadUpdate.Votes < 0 {
+	if errInt != nil && threadUpdate.Votes < 0 {
 		threadUpdate.Votes *= -1
+		log.Println("--------------------")
+		log.Println(threadUpdate)
+		log.Println("--------------------")
 	}
 
 	body, err := json.Marshal(threadUpdate)

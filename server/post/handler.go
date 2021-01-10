@@ -24,6 +24,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 	var thread *models.Thread
 	var err error
 	id, errInt := strconv.Atoi(slugOrID)
+
 	if errInt != nil {
 		thread, err = threadRep.FindThread(slugOrID)
 	} else {

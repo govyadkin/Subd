@@ -8,7 +8,7 @@ import (
 func InsertThread(thread *models.Thread) error {
 	err := models.DB.QueryRow("INSERT INTO threads(author, created, forum, message, slug, title) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;",
 		thread.Author, thread.Created, thread.Forum, thread.Message, thread.Slug, thread.Title).
-		Scan(&thread.Author, &thread.Created, &thread.Forum, &thread.ID, &thread.Message, &thread.Slug, &thread.Title, &thread.Votes)
+		Scan(&thread.ID, &thread.Author, &thread.Created, &thread.Forum, &thread.Message, &thread.Slug, &thread.Title, &thread.Votes)
 
 	return err
 }
@@ -91,10 +91,10 @@ func UpdateThread(thread *models.Thread, threadUpdate models.ThreadUpdate) error
 	}
 
 	if i > 1 {
-		sqlRow := "UPDATE threads SET" + s + " WHERE slug=$" + fmt.Sprint(i) + " RETURNING *;"
+		sqlRow := "UPDATE threads SET" + s + " WHERE slug ILIKE $" + fmt.Sprint(i) + " RETURNING *;"
 		values = append(values, thread.Slug)
 		err := models.DB.QueryRow(sqlRow, values...).
-			Scan(&thread.Author, &thread.Created, &thread.Forum, &thread.ID, &thread.Message, &thread.Slug, &thread.Title, &thread.Votes)
+			Scan(&thread.ID, &thread.Author, &thread.Created, &thread.Forum, &thread.Message, &thread.Slug, &thread.Title, &thread.Votes)
 
 		return err
 	} else {
@@ -112,7 +112,7 @@ func InsertVote(vote models.Vote) error {
 }
 
 func UpdateVote(vote models.Vote) error {
-	_, err := models.DB.Exec("UPDATE votes SET voice=$1 WHERE nickname=$2 AND thread=$3;", vote.Voice, vote.Nickname, vote.Thread)
+	_, err := models.DB.Exec("UPDATE votes SET voice=$1 WHERE thread=$2 AND nickname ILIKE $3;", vote.Voice, vote.Thread, vote.Nickname)
 
 	return err
 }
