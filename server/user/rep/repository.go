@@ -120,43 +120,14 @@ func FindByForum(slug, since string, limit int, desc bool) (*models.Users, error
 	//if desc {
 	//	sqlRek += `DESC `
 	//}
-	//sqlRek += `LIMIT $` + fmt.Sprint(i) + `;`
-	//values = append(values, limit)
-	//
+	//if limit != 0{
+	//	sqlRek += `LIMIT $` + fmt.Sprint(i) + `;`
+	//	values = append(values, limit)
+	//}else{
+	//	sqlRek += `;`
+	//}
 	//rows, err := models.DB.Query(sqlRek, values...)
-	///*var rows *sql.Rows
-	//var err error
-	//if limit > 0 && since != "" {
-	//	if desc {
-	//		query += "AND lower(users.nickname) < lower($2::text) ORDER BY users.nickname COLLATE \"C\" DESC LIMIT $3"
-	//	} else {
-	//		query += "AND lower(users.nickname)  > lower($2::text) ORDER BY users.nickname COLLATE \"C\" ASC LIMIT $3"
-	//	}
-	//	rows, err = models.DB.Query(query, &slug, &since, &limit)
-	//} else {
-	//	if limit > 0 {
-	//		if desc {
-	//			query += "ORDER BY users.nickname COLLATE \"C\" DESC LIMIT $2"
-	//		} else {
-	//			query += "ORDER BY users.nickname COLLATE \"C\" ASC LIMIT $2"
-	//		}
-	//		rows, err = models.DB.Query(query, &slug, &limit)
-	//	} else if since != "" {
-	//		if desc {
-	//			query += "AND lower(users.nickname) < lower($2::text) ORDER BY users.nickname COLLATE \"C\" DESC "
-	//		} else {
-	//			query += "AND lower(users.nickname) > lower($2::text) ORDER BY users.nickname COLLATE \"C\" ASC "
-	//		}
-	//		rows, err = models.DB.Query(query, &slug, &since)
-	//	} else {
-	//		if desc {
-	//			query += "ORDER BY users.nickname COLLATE \"C\" DESC "
-	//		} else {
-	//			query += "ORDER BY users.nickname COLLATE \"C\" ASC "
-	//		}
-	//		rows, err = models.DB.Query(query, &slug)
-	//	}
-	//}*/
+	//
 	//if err != nil {
 	//	return nil, err
 	//}
@@ -169,9 +140,64 @@ func FindByForum(slug, since string, limit int, desc bool) (*models.Users, error
 	//	}
 	//	users = append(users, user)
 	//}
-	//
+	////if len(users) == 0{
+	////	users := models.Users{}
+	////	user := models.User{}
+	////	var usernames []string
+	////
+	////	rows, err := models.DB.Query("SELECT author FROM threads WHERE forum ILIKE $1 UNION SELECT author FROM posts WHERE forum ILIKE $1;", slug)
+	////	if err != nil {
+	////		return nil, err
+	////	}
+	////	defer rows.Close()
+	////
+	////	var u string
+	////	for rows.Next() {
+	////		err := rows.Scan(&u)
+	////		if err != nil {
+	////			return nil, err
+	////		}
+	////		usernames = append(usernames, u)
+	////	}
+	////
+	////	values := make([]interface{}, 0, 3)
+	////	sqlRek := `SELECT about, email, fullname, nickname FROM users WHERE nickname = ANY($1) `
+	////	values = append(values, pq.Array(usernames))
+	////	i := 2
+	////	if since != "" {
+	////		if desc {
+	////			sqlRek += `AND LOWER(nickname) < LOWER($2) COLLATE "C" `
+	////		} else {
+	////			sqlRek += `AND LOWER(nickname) > LOWER($2) COLLATE "C" `
+	////		}
+	////		values = append(values, since)
+	////		i++
+	////	}
+	////	sqlRek += `ORDER BY LOWER(nickname) COLLATE "C" `
+	////	if desc {
+	////		sqlRek += `DESC `
+	////	}
+	////	sqlRek += `LIMIT $` + fmt.Sprint(i) + `;`
+	////	values = append(values, limit)
+	////
+	////	rows, err = models.DB.Query(sqlRek, values...)
+	////
+	////	if err != nil {
+	////		return nil, err
+	////	}
+	////	defer rows.Close()
+	////
+	////	for rows.Next() {
+	////		err = rows.Scan(&user.About, &user.Email, &user.Fullname, &user.Nickname)
+	////		if err != nil {
+	////			return nil, err
+	////		}
+	////		users = append(users, user)
+	////	}
+	////
+	////	return &users, nil
+	////}
 	//return &users, nil
-	///*
 
 	users := models.Users{}
 	user := models.User{}

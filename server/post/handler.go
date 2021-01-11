@@ -113,7 +113,8 @@ func ThreadPosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	posts, err := postRep.FindPosts(thread.Author, limit, since, sort, desc)
+	//posts, err := postRep.FindPosts(thread.Author, limit, since, sort, desc)
+	posts, err := postRep.FindPosts(thread.ID, limit, since, sort, desc)
 	if err != nil {
 		log.Println(err)
 		return

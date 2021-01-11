@@ -5,14 +5,6 @@ import (
 	"subd/dz/models"
 )
 
-//func InsertPost(p *models.Post) error {
-//	err := models.DB.QueryRow("INSERT INTO posts(author, created, forum, message, parent, thread) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;",
-//		p.Author, p.Created, p.Forum, p.Message, p.Parent, p.Thread).
-//		Scan(&p.Author, &p.Created, &p.Forum, &p.ID, &p.IsEdited, &p.Message, &p.Parent, &p.Thread, &p.Path)
-//
-//	return err
-//}
-
 func InsertPosts(pos *models.Posts, id int, forum string) (*models.Posts, error) {
 	posts := models.Posts{}
 	if len(*pos) == 0 {
@@ -21,11 +13,14 @@ func InsertPosts(pos *models.Posts, id int, forum string) (*models.Posts, error)
 	query := "INSERT INTO posts(author, forum, message, thread, parent, created) VALUES "
 	i := 1
 	values := make([]interface{}, 0, 2*len(posts))
+	//autors := ""
 	for _, post := range *pos {
 		query += fmt.Sprintf("('%s', '%s', '%s', %d, $%d, $%d), ",
 			post.Author, forum, post.Message, id, i, i+1)
 		i += 2
 		values = append(values, post.Parent, post.Created)
+		//autors += fmt.Sprintf("('%s', '%s'),",
+		//	forum, post.Author)
 	}
 
 	rows, err := models.DB.Query(query[:len(query)-2]+" RETURNING *;", values...)
@@ -43,75 +38,47 @@ func InsertPosts(pos *models.Posts, id int, forum string) (*models.Posts, error)
 
 		posts = append(posts, p)
 	}
+
+	//_, err = models.DB.Exec("INSERT INTO forum_users (slug, author) VALUES" + autors[:len(autors)-1]+" ON CONFLICT DO NOTHING;")
+	//if err != nil {
+	//	return nil, err
+	//}
+
 	return &posts, nil
 }
 
-//func CheckPostByThread(post int) bool {
-//	var count int
-//	err := models.DB.QueryRow("SELECT thread FROM posts WHERE thread = $1;", post).Scan(&count)
-//	return err == nil
-//}
-
-func FindPosts(author string, limit, since int, sort string, desc bool) (*models.Posts, error) {
+func FindPosts(author int, limit, since int, sort string, desc bool) (*models.Posts, error) {
 	posts := models.Posts{}
 
-	i := 2
-	values := make([]interface{}, 0, 3)
-	sqlRec := "SELECT author, created, forum, id, message, parent, thread FROM posts WHERE "
-
-	values = append(values, author)
-	if sort == "flat" || sort == "" {
-		sqlRec += "author ILIKE $1 "
-		if since != 0 {
-			if desc {
-				sqlRec += "AND id < $2 "
-			} else {
-				sqlRec += "AND id > $2 "
-			}
-			i++
-			values = append(values, since)
-		}
-		if desc {
-			sqlRec += "ORDER BY created DESC, id DESC LIMIT $" + fmt.Sprint(i) + ";"
-		} else {
-			sqlRec += "ORDER BY created ASC, id LIMIT $" + fmt.Sprint(i) + ";"
-		}
-	} else if sort == "tree" {
-		sqlRec += "author ILIKE $1 "
-		if since != 0 {
-			if desc {
-				sqlRec += "AND PATH < (SELECT path FROM posts WHERE id = $2) "
-			} else {
-				sqlRec += "AND PATH > (SELECT path FROM posts WHERE id = $2) "
-			}
-			i++
-			values = append(values, since)
-		}
-		if desc {
-			sqlRec += "ORDER BY path DESC, id  DESC LIMIT $" + fmt.Sprint(i) + ";"
-		} else {
-			sqlRec += "ORDER BY path, id LIMIT $" + fmt.Sprint(i) + ";"
-		}
-	} else {
-		sqlRec += "path[1] IN (SELECT id FROM posts WHERE author = $1 AND parent IS NULL "
-		if since != 0 {
-			if desc {
-				sqlRec += "AND PATH[1] < (SELECT path[1] FROM posts WHERE id = $2) "
-			} else {
-				sqlRec += "AND PATH[1] > (SELECT path[1] FROM posts WHERE id = $2) "
-			}
-			i++
-			values = append(values, since)
-		}
-		if desc {
-			sqlRec += "ORDER BY id DESC LIMIT $" + fmt.Sprint(i) + ")ORDER BY path[1] DESC, path, id;"
-		} else {
-			sqlRec += "ORDER BY id LIMIT $" + fmt.Sprint(i) + ")ORDER BY path, id;"
-		}
+	sqlRec := "SELECT p.author, p.created, p.forum, p.id, p.message, p.parent, p.thread FROM posts AS p "
+	symb := ">"
+	descS := ""
+	if desc {
+		symb = "<"
+		descS = " DESC"
 	}
-	values = append(values, limit)
+	and := ""
+	if sort == "flat" || sort == "" {
+		if since != 0 {
+			and = fmt.Sprintf("AND p.id %s %d ", symb, since)
+		}
+		sqlRec += fmt.Sprintf("WHERE p.thread = %d %sORDER BY p.created %s, p.id %s LIMIT %d;", author, and, descS, descS, limit)
+	} else if sort == "tree" {
+		if since != 0 {
+			and = fmt.Sprintf("AND p.PATH %s (SELECT path FROM posts WHERE id = %d) ", symb, since)
+		}
+		sqlRec += fmt.Sprintf("WHERE p.thread = %d %sORDER BY p.path %s LIMIT %d;", author, and, descS, limit)
+	} else {
+		if since != 0 {
+			and = fmt.Sprintf("AND PATH[1] %s (SELECT path[1] FROM posts WHERE id = %d) ", symb, since)
+		}
+		//sqlRec += fmt.Sprintf("WHERE p.path[1] IN (SELECT id FROM posts WHERE thread = %d AND parent IS NULL %sORDER BY id %s LIMIT %d)ORDER BY p.path[1] %s, p.path;",
+		//	author, and, descS, limit, descS)
+		sqlRec += fmt.Sprintf("JOIN (SELECT path FROM posts WHERE thread = %d AND parent IS NULL %sORDER BY id %s LIMIT %d) AS prnt ON prnt.path[1] = p.path[1] ORDER BY p.path[1] %s, p.path;",
+			author, and, descS, limit, descS)
+	}
 
-	rows, err := models.DB.Query(sqlRec, values...)
+	rows, err := models.DB.Query(sqlRec)
 
 	if err != nil {
 		return nil, err

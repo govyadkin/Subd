@@ -112,14 +112,13 @@ EXECUTE PROCEDURE update_threads_count();
 --     RETURN NEW;
 -- END;
 -- $BODY$ LANGUAGE plpgsql;
-
-
+--
 -- CREATE TRIGGER thread_insert_forum
 --     AFTER INSERT
 --     ON threads
 --     FOR EACH ROW
 -- EXECUTE PROCEDURE update_forum_users_by_insert_th_or_post();
---
+
 -- CREATE TRIGGER update_forum_users_posts
 --     AFTER INSERT
 --     ON posts
@@ -162,7 +161,11 @@ EXECUTE PROCEDURE update_path();
 CREATE OR REPLACE FUNCTION insert_votes() RETURNS TRIGGER AS
 $update_users_forum$
 BEGIN
-    UPDATE threads SET votes=(votes+NEW.voice) WHERE id=NEW.thread;
+    IF NEW.voice > 0 THEN
+        UPDATE threads SET votes = (votes + 1) WHERE id = NEW.thread;
+    ELSE
+        UPDATE threads SET votes = (votes - 1) WHERE id = NEW.thread;
+    END IF;
     return NEW;
 END
 $update_users_forum$ LANGUAGE plpgsql;
@@ -177,7 +180,14 @@ EXECUTE PROCEDURE insert_votes();
 CREATE OR REPLACE FUNCTION update_votes() RETURNS TRIGGER AS
 $update_users_forum$
 BEGIN
-    UPDATE threads SET votes=(votes+NEW.voice*2) WHERE id=NEW.thread;
+    IF NEW.voice = OLD.voice THEN
+        RETURN NEW;
+    END IF;
+    IF NEW.voice > 0 THEN
+        UPDATE threads SET votes = (votes + 2) WHERE id = NEW.thread;
+    ELSE
+        UPDATE threads SET votes = (votes - 2) WHERE id = NEW.thread;
+    END IF;
     return NEW;
 END
 $update_users_forum$ LANGUAGE plpgsql;
