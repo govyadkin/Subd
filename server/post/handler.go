@@ -50,33 +50,17 @@ func Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, post := range posts {
-		if !userRep.CheckByNickname(post.Author) {
-			w.WriteHeader(http.StatusNotFound)
-			w.Write(models.MarshalErrorSt("Can't find post author by nickname"))
-			return
-		}
+	postsCreated, err := postRep.InsertPosts(&posts, thread.ID, thread.Forum)
 
-		post.Thread = thread.ID
-		if post.Parent.Int64 != 0 && !postRep.CheckPostByThread(post.Thread) {
+	if err != nil {
+		if strings.Contains(err.Error(), "bad parent thread") {
 			w.WriteHeader(http.StatusConflict)
 			w.Write(models.MarshalErrorSt("Parent post was created in another thread"))
 			return
 		}
-	}
-
-	postsCreated := models.Posts{}
-	for _, post := range posts {
-		post.Thread = thread.ID
-		post.Forum = thread.Forum
-
-		err = postRep.InsertPost(&post)
-		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		postsCreated = append(postsCreated, post)
+		w.WriteHeader(http.StatusNotFound)
+		w.Write(models.MarshalErrorSt("Can't find post author by nickname"))
+		return
 	}
 
 	body, err := json.Marshal(postsCreated)

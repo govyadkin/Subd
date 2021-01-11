@@ -5,7 +5,7 @@ CREATE UNLOGGED TABLE "users" (
   "nickname" varchar PRIMARY KEY
 );
 
-CREATE INDEX index_users_all ON users (nickname);
+CREATE INDEX index_users_all ON users (lower(nickname));
 
 CREATE UNLOGGED TABLE "forums" (
   "username" varchar NOT null,
@@ -16,9 +16,9 @@ CREATE UNLOGGED TABLE "forums" (
   FOREIGN KEY ("username") REFERENCES "users" (nickname)
 );
 
-CREATE INDEX index_forums_slug ON forums USING hash (slug);
-CREATE INDEX index_users_fk ON forums (author);
-CREATE INDEX index_forum_all ON forums (slug, title, author, posts, threads);
+CREATE INDEX index_forums_slug ON forums USING hash (lower(slug));
+CREATE INDEX index_users_fk ON forums (lower(author));
+-- CREATE INDEX index_forum_all ON forums (slug, title, author, posts, threads);
 
 CREATE UNLOGGED TABLE "threads" (
   "id" SERIAL PRIMARY KEY,
@@ -33,11 +33,11 @@ CREATE UNLOGGED TABLE "threads" (
   FOREIGN KEY (forum) REFERENCES "forums" (slug)
 );
 
-CREATE INDEX index_threads_slug ON threads (slug);
-CREATE INDEX index_thread_slug_hash ON threads USING hash (slug);
-CREATE INDEX index_thread_users_fk ON threads (author);
+CREATE INDEX index_threads_slug ON threads (lower(slug));
+CREATE INDEX index_thread_slug_hash ON threads USING hash (lower(slug));
+CREATE INDEX index_thread_users_fk ON threads (lower(author));
 -- CREATE INDEX index_thread_forum_fk ON threads (forum);
-CREATE INDEX index_thread_forum_created ON threads (forum, created);
+CREATE INDEX index_thread_forum_created ON threads (lower(forum), created);
 -- CREATE INDEX index_thread_all ON threads (title, message, created, slug, author, forum, votes);
 
 CREATE UNLOGGED TABLE "posts" (
@@ -59,10 +59,10 @@ CREATE UNLOGGED TABLE "posts" (
 
 CREATE INDEX index_posts_thread ON posts (thread);
 -- CREATE INDEX index_post_thread_path ON posts (thread, path);
-CREATE INDEX index_posts_author ON posts (author, id, path);
-CREATE INDEX index_posts_author ON posts (author, path);
-CREATE INDEX index_posts_author ON posts (author, (path[1]));
-CREATE INDEX index_posts_author ON posts (author, parent);
+CREATE INDEX index_posts_author ON posts (lower(author), id, path);
+CREATE INDEX index_posts_author ON posts (lower(author), path);
+CREATE INDEX index_posts_author ON posts (lower(author), (path[1]));
+CREATE INDEX index_posts_author ON posts (lower(author), parent);
 -- CREATE INDEX index_post_thread_parent_path ON posts (thread, parent, path);
 CREATE INDEX index_post_path1_path ON posts ((path[1]), path);
 -- CREATE INDEX index_posts_author ON posts (author,thread);
@@ -79,7 +79,15 @@ CREATE UNLOGGED TABLE "votes" (
    UNIQUE (nickname, thread)
 );
 
-CREATE INDEX index_votes_thread_nick ON votes (thread, nickname);
+CREATE INDEX index_votes_thread_nick ON votes (thread, lower(nickname));
+
+-- CREATE UNLOGGED TABLE forum_users
+-- (
+--     author varchar REFERENCES users (nickname) ON DELETE CASCADE NOT NULL,
+--     slug   varchar REFERENCES forums (slug) ON DELETE CASCADE NOT NULL,
+--     UNIQUE (author, slug)
+-- );
+-- CREATE UNIQUE INDEX on forum_users (slug, author);
 
 CREATE OR REPLACE FUNCTION update_threads_count() RETURNS TRIGGER AS
 $update_users_forum$
@@ -94,6 +102,29 @@ CREATE TRIGGER add_thread
     ON threads
     FOR EACH ROW
 EXECUTE PROCEDURE update_threads_count();
+
+-- CREATE OR REPLACE FUNCTION update_forum_users_by_insert_th_or_post()
+-- RETURNS TRIGGER AS
+-- $BODY$
+-- BEGIN
+--     INSERT INTO forum_users values (NEW.author, NEW.forum)
+--     ON CONFLICT DO NOTHING;
+--     RETURN NEW;
+-- END;
+-- $BODY$ LANGUAGE plpgsql;
+
+
+-- CREATE TRIGGER thread_insert_forum
+--     AFTER INSERT
+--     ON threads
+--     FOR EACH ROW
+-- EXECUTE PROCEDURE update_forum_users_by_insert_th_or_post();
+--
+-- CREATE TRIGGER update_forum_users_posts
+--     AFTER INSERT
+--     ON posts
+--     FOR EACH ROW
+-- EXECUTE PROCEDURE update_forum_users_by_insert_th_or_post();
 
 
 CREATE OR REPLACE FUNCTION update_path() RETURNS TRIGGER AS
@@ -111,8 +142,9 @@ BEGIN
         INTO first_parent_thread, parent_path;
 
         IF NOT FOUND THEN
-            RAISE EXCEPTION 'parent is from different thread';
+            RAISE EXCEPTION 'bad parent thread';
         END IF;
+
         NEW.path := parent_path || NEW.id;
     END IF;
     UPDATE forums SET Posts=Posts + 1 WHERE lower(forums.slug) = lower(new.forum);

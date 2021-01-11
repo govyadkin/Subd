@@ -5,19 +5,52 @@ import (
 	"subd/dz/models"
 )
 
-func InsertPost(p *models.Post) error {
-	err := models.DB.QueryRow("INSERT INTO posts(author, created, forum, message, parent, thread) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;",
-		p.Author, p.Created, p.Forum, p.Message, p.Parent, p.Thread).
-		Scan(&p.Author, &p.Created, &p.Forum, &p.ID, &p.IsEdited, &p.Message, &p.Parent, &p.Thread, &p.Path)
+//func InsertPost(p *models.Post) error {
+//	err := models.DB.QueryRow("INSERT INTO posts(author, created, forum, message, parent, thread) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;",
+//		p.Author, p.Created, p.Forum, p.Message, p.Parent, p.Thread).
+//		Scan(&p.Author, &p.Created, &p.Forum, &p.ID, &p.IsEdited, &p.Message, &p.Parent, &p.Thread, &p.Path)
+//
+//	return err
+//}
 
-	return err
+func InsertPosts(pos *models.Posts, id int, forum string) (*models.Posts, error) {
+	posts := models.Posts{}
+	if len(*pos) == 0 {
+		return &posts, nil
+	}
+	query := "INSERT INTO posts(author, forum, message, thread, parent, created) VALUES "
+	i := 1
+	values := make([]interface{}, 0, 2*len(posts))
+	for _, post := range *pos {
+		query += fmt.Sprintf("('%s', '%s', '%s', %d, $%d, $%d), ",
+			post.Author, forum, post.Message, id, i, i+1)
+		i += 2
+		values = append(values, post.Parent, post.Created)
+	}
+
+	rows, err := models.DB.Query(query[:len(query)-2]+" RETURNING *;", values...)
+	if err != nil {
+		return nil, err
+	}
+
+	p := models.Post{}
+
+	for rows.Next() {
+		err = rows.Scan(&p.Author, &p.Created, &p.Forum, &p.ID, &p.IsEdited, &p.Message, &p.Parent, &p.Thread, &p.Path)
+		if err != nil {
+			return nil, err
+		}
+
+		posts = append(posts, p)
+	}
+	return &posts, nil
 }
 
-func CheckPostByThread(post int) bool {
-	var count int
-	err := models.DB.QueryRow("SELECT thread FROM posts WHERE thread = $1;", post).Scan(&count)
-	return err == nil
-}
+//func CheckPostByThread(post int) bool {
+//	var count int
+//	err := models.DB.QueryRow("SELECT thread FROM posts WHERE thread = $1;", post).Scan(&count)
+//	return err == nil
+//}
 
 func FindPosts(author string, limit, since int, sort string, desc bool) (*models.Posts, error) {
 	posts := models.Posts{}
