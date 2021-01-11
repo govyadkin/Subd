@@ -81,13 +81,13 @@ CREATE UNLOGGED TABLE "votes" (
 
 CREATE INDEX index_votes_thread_nick ON votes (thread, lower(nickname));
 
--- CREATE UNLOGGED TABLE forum_users
--- (
---     author varchar REFERENCES users (nickname) ON DELETE CASCADE NOT NULL,
---     slug   varchar REFERENCES forums (slug) ON DELETE CASCADE NOT NULL,
---     UNIQUE (author, slug)
--- );
--- CREATE UNIQUE INDEX on forum_users (slug, author);
+CREATE UNLOGGED TABLE forum_users
+(
+    author varchar REFERENCES users (nickname) ON DELETE CASCADE NOT NULL,
+    slug   varchar REFERENCES forums (slug) ON DELETE CASCADE NOT NULL,
+    UNIQUE (author, slug)
+);
+CREATE UNIQUE INDEX on forum_users (slug, author);
 
 CREATE OR REPLACE FUNCTION update_threads_count() RETURNS TRIGGER AS
 $update_users_forum$
@@ -103,21 +103,21 @@ CREATE TRIGGER add_thread
     FOR EACH ROW
 EXECUTE PROCEDURE update_threads_count();
 
--- CREATE OR REPLACE FUNCTION update_forum_users_by_insert_th_or_post()
--- RETURNS TRIGGER AS
--- $BODY$
--- BEGIN
---     INSERT INTO forum_users values (NEW.author, NEW.forum)
---     ON CONFLICT DO NOTHING;
---     RETURN NEW;
--- END;
--- $BODY$ LANGUAGE plpgsql;
---
--- CREATE TRIGGER thread_insert_forum
---     AFTER INSERT
---     ON threads
---     FOR EACH ROW
--- EXECUTE PROCEDURE update_forum_users_by_insert_th_or_post();
+CREATE OR REPLACE FUNCTION update_forum_users_by_insert_th_or_post()
+RETURNS TRIGGER AS
+$BODY$
+BEGIN
+    INSERT INTO forum_users values (NEW.author, NEW.forum)
+    ON CONFLICT DO NOTHING;
+    RETURN NULL;
+END;
+$BODY$ LANGUAGE plpgsql;
+
+CREATE TRIGGER thread_insert_forum
+    AFTER INSERT
+    ON threads
+    FOR EACH ROW
+EXECUTE PROCEDURE update_forum_users_by_insert_th_or_post();
 
 -- CREATE TRIGGER update_forum_users_posts
 --     AFTER INSERT
@@ -135,7 +135,6 @@ BEGIN
     IF (NEW.parent IS NULL) THEN
         NEW.path := array_append(NEW.path, NEW.id);
     ELSE
-
         SELECT thread, path FROM posts
         WHERE thread = NEW.thread AND id = NEW.parent
         INTO first_parent_thread, parent_path;

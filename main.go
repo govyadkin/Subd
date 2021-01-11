@@ -16,6 +16,7 @@ import (
 
 func DBConnection() *sql.DB {
 	connString := "host=localhost user=misha password=password dbname=subdproject sslmode=disable"
+	//connString := "host=localhost user=password password=password dbname=password sslmode=disable"
 
 	db, err := sql.Open("postgres", connString)
 	if err != nil {

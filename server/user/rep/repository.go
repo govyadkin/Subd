@@ -2,7 +2,6 @@ package rep
 
 import (
 	"fmt"
-	"github.com/lib/pq"
 	"subd/dz/models"
 )
 
@@ -99,107 +98,62 @@ func UpdateUser(nickname string, userUpdate models.UserUpdate) (*models.User, er
 }
 
 func FindByForum(slug, since string, limit int, desc bool) (*models.Users, error) {
-	//users := models.Users{}
-	//sqlRek := "SELECT users.about, users.email, users.fullname, users.nickname FROM forum_users " +
-	//	"JOIN users ON users.nickname = forum_users.author WHERE slug = $1 "
-	//
-	//values := make([]interface{}, 0, 3)
-	//
-	//values = append(values, slug)
-	//i := 2
-	//if since != "" {
-	//	if desc {
-	//		sqlRek += `AND LOWER(users.nickname) < LOWER($2) COLLATE "C" `
-	//	} else {
-	//		sqlRek += `AND LOWER(users.nickname) > LOWER($2) COLLATE "C" `
-	//	}
-	//	values = append(values, since)
-	//	i++
-	//}
-	//sqlRek += `ORDER BY LOWER(users.nickname) COLLATE "C" `
-	//if desc {
-	//	sqlRek += `DESC `
-	//}
-	//if limit != 0{
-	//	sqlRek += `LIMIT $` + fmt.Sprint(i) + `;`
-	//	values = append(values, limit)
-	//}else{
-	//	sqlRek += `;`
-	//}
-	//rows, err := models.DB.Query(sqlRek, values...)
-	//
-	//if err != nil {
-	//	return nil, err
-	//}
-	//defer rows.Close()
-	//user := models.User{}
-	//for rows.Next() {
-	//	err = rows.Scan(&user.About, &user.Email, &user.Fullname, &user.Nickname)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	users = append(users, user)
-	//}
-	////if len(users) == 0{
-	////	users := models.Users{}
-	////	user := models.User{}
-	////	var usernames []string
-	////
-	////	rows, err := models.DB.Query("SELECT author FROM threads WHERE forum ILIKE $1 UNION SELECT author FROM posts WHERE forum ILIKE $1;", slug)
-	////	if err != nil {
-	////		return nil, err
-	////	}
-	////	defer rows.Close()
-	////
-	////	var u string
-	////	for rows.Next() {
-	////		err := rows.Scan(&u)
-	////		if err != nil {
-	////			return nil, err
-	////		}
-	////		usernames = append(usernames, u)
-	////	}
-	////
-	////	values := make([]interface{}, 0, 3)
-	////	sqlRek := `SELECT about, email, fullname, nickname FROM users WHERE nickname = ANY($1) `
-	////	values = append(values, pq.Array(usernames))
-	////	i := 2
-	////	if since != "" {
-	////		if desc {
-	////			sqlRek += `AND LOWER(nickname) < LOWER($2) COLLATE "C" `
-	////		} else {
-	////			sqlRek += `AND LOWER(nickname) > LOWER($2) COLLATE "C" `
-	////		}
-	////		values = append(values, since)
-	////		i++
-	////	}
-	////	sqlRek += `ORDER BY LOWER(nickname) COLLATE "C" `
-	////	if desc {
-	////		sqlRek += `DESC `
-	////	}
-	////	sqlRek += `LIMIT $` + fmt.Sprint(i) + `;`
-	////	values = append(values, limit)
-	////
-	////	rows, err = models.DB.Query(sqlRek, values...)
-	////
-	////	if err != nil {
-	////		return nil, err
-	////	}
-	////	defer rows.Close()
-	////
-	////	for rows.Next() {
-	////		err = rows.Scan(&user.About, &user.Email, &user.Fullname, &user.Nickname)
-	////		if err != nil {
-	////			return nil, err
-	////		}
-	////		users = append(users, user)
-	////	}
-	////
-	////	return &users, nil
-	////}
-	//return &users, nil
-
 	users := models.Users{}
+	//ss := fmt.Sprintf()
+	sqlRek := "SELECT users.about, users.email, users.fullname, users.nickname FROM forum_users " +
+		"JOIN users ON lower(users.nickname) = lower(forum_users.author) WHERE lower(slug) = lower($1) "
+
+	values := make([]interface{}, 0, 3)
+
+	values = append(values, slug)
+	i := 2
+	if since != "" {
+		if desc {
+			sqlRek += `AND LOWER(users.nickname) < LOWER($2) COLLATE "C" `
+		} else {
+			sqlRek += `AND LOWER(users.nickname) > LOWER($2) COLLATE "C" `
+		}
+		values = append(values, since)
+		i++
+	}
+	sqlRek += `ORDER BY LOWER(users.nickname) COLLATE "C" `
+	if desc {
+		sqlRek += `DESC `
+	}
+	sqlRek += `LIMIT $` + fmt.Sprint(i) + `;`
+	values = append(values, limit)
+	//symb := ">"
+	//descS := ""
+	//if desc{
+	//	symb = "<"
+	//	descS = "DESC "
+	//}
+	//and := ""
+	//
+	//if since != "" {
+	//	and = fmt.Sprintf(`AND LOWER(users.nickname) %s LOWER(%s) COLLATE "C" `,symb, since)
+	//}
+	//sqlRek := "SELECT users.about, users.email, users.fullname, users.nickname FROM forum_users JOIN users ON users.nickname = forum_users.author WHERE "
+	//sqlRek += fmt.Sprintf(`slug='%s' %sORDER BY LOWER(users.nickname) COLLATE "C" %sLIMIT %d;`, slug, and, descS, limit)
+
+	rows, err := models.DB.Query(sqlRek, values...)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+	user := models.User{}
+	for rows.Next() {
+		err = rows.Scan(&user.About, &user.Email, &user.Fullname, &user.Nickname)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+	}
+
+	return &users, nil
+
+	/*users := models.Users{}
 	user := models.User{}
 	var usernames []string
 
@@ -253,5 +207,5 @@ func FindByForum(slug, since string, limit int, desc bool) (*models.Users, error
 		users = append(users, user)
 	}
 
-	return &users, nil
+	return &users, nil*/
 }

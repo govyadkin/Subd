@@ -10,17 +10,17 @@ func InsertPosts(pos *models.Posts, id int, forum string) (*models.Posts, error)
 	if len(*pos) == 0 {
 		return &posts, nil
 	}
-	query := "INSERT INTO posts(author, forum, message, thread, parent, created) VALUES "
+	query := "INSERT INTO posts(author, forum, message, thread, parent) VALUES "
 	i := 1
-	values := make([]interface{}, 0, 2*len(posts))
-	//autors := ""
+	values := make([]interface{}, 0, len(posts))
+	autors := ""
 	for _, post := range *pos {
-		query += fmt.Sprintf("('%s', '%s', '%s', %d, $%d, $%d), ",
-			post.Author, forum, post.Message, id, i, i+1)
-		i += 2
-		values = append(values, post.Parent, post.Created)
-		//autors += fmt.Sprintf("('%s', '%s'),",
-		//	forum, post.Author)
+		query += fmt.Sprintf("('%s', '%s', '%s', %d, $%d), ",
+			post.Author, forum, post.Message, id, i)
+		i++
+		values = append(values, post.Parent)
+		autors += fmt.Sprintf("('%s', '%s'),",
+			forum, post.Author)
 	}
 
 	rows, err := models.DB.Query(query[:len(query)-2]+" RETURNING *;", values...)
@@ -39,10 +39,10 @@ func InsertPosts(pos *models.Posts, id int, forum string) (*models.Posts, error)
 		posts = append(posts, p)
 	}
 
-	//_, err = models.DB.Exec("INSERT INTO forum_users (slug, author) VALUES" + autors[:len(autors)-1]+" ON CONFLICT DO NOTHING;")
-	//if err != nil {
-	//	return nil, err
-	//}
+	_, err = models.DB.Exec("INSERT INTO forum_users (slug, author) VALUES" + autors[:len(autors)-1]+" ON CONFLICT DO NOTHING;")
+	if err != nil {
+		return nil, err
+	}
 
 	return &posts, nil
 }
