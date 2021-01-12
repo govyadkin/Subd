@@ -50,7 +50,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	postsCreated, err := postRep.InsertPosts(&posts, thread.ID, thread.Forum)
+	err = postRep.InsertPosts(&posts, thread.ID, thread.Forum)
 
 	if err != nil {
 		if strings.Contains(err.Error(), "bad parent thread") {
@@ -63,7 +63,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, err := json.Marshal(postsCreated)
+	body, err := json.Marshal(posts)
 	if err != nil {
 		log.Println(err)
 		return

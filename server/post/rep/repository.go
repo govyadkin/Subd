@@ -5,46 +5,58 @@ import (
 	"subd/dz/models"
 )
 
-func InsertPosts(pos *models.Posts, id int, forum string) (*models.Posts, error) {
-	posts := models.Posts{}
+func InsertPosts(pos *models.Posts, id int, forum string) error {
 	if len(*pos) == 0 {
-		return &posts, nil
+		return nil
 	}
 	query := "INSERT INTO posts(author, forum, message, thread, parent) VALUES "
 	i := 1
-	values := make([]interface{}, 0, len(posts))
-	autors := ""
+	values := make([]interface{}, 0, len(*pos))
+	authors := ""
 	for _, post := range *pos {
 		query += fmt.Sprintf("('%s', '%s', '%s', %d, $%d), ",
 			post.Author, forum, post.Message, id, i)
 		i++
 		values = append(values, post.Parent)
-		autors += fmt.Sprintf("('%s', '%s'),",
+		authors += fmt.Sprintf("('%s', '%s'),",
 			forum, post.Author)
 	}
 
-	rows, err := models.DB.Query(query[:len(query)-2]+" RETURNING *;", values...)
+	rows, err := models.DB.Query(query[:len(query)-2]+" RETURNING created, id;", values...)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	p := models.Post{}
-
+	i = 0
 	for rows.Next() {
-		err = rows.Scan(&p.Author, &p.Created, &p.Forum, &p.ID, &p.IsEdited, &p.Message, &p.Parent, &p.Thread, &p.Path)
+		err = rows.Scan(&(*pos)[i].Created, &(*pos)[i].ID)
+		(*pos)[i].Forum = forum
+		(*pos)[i].Thread = id
 		if err != nil {
-			return nil, err
+			return err
 		}
-
-		posts = append(posts, p)
+		i++
 	}
 
-	_, err = models.DB.Exec("INSERT INTO forum_users (slug, author) VALUES" + autors[:len(autors)-1]+" ON CONFLICT DO NOTHING;")
-	if err != nil {
-		return nil, err
-	}
+	//rows, err := models.DB.Query(query[:len(query)-2]+" RETURNING *;", values...)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//p := models.Post{}
+	//
+	//for rows.Next() {
+	//	err = rows.Scan(&p.Author, &p.Created, &p.Forum, &p.ID, &p.IsEdited, &p.Message, &p.Parent, &p.Thread, &p.Path)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//
+	//	posts = append(posts, p)
+	//}
 
-	return &posts, nil
+	_, err = models.DB.Exec("INSERT INTO forum_users (slug, author) VALUES" + authors[:len(authors)-1] + " ON CONFLICT DO NOTHING;")
+
+	return err
 }
 
 func FindPosts(author int, limit, since int, sort string, desc bool) (*models.Posts, error) {
