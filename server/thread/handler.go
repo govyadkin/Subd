@@ -4,9 +4,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"github.com/gorilla/mux"
-	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"subd/dz/models"
 	forumRep "subd/dz/server/forum/rep"
 	threadRep "subd/dz/server/thread/rep"
@@ -22,7 +22,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 	thread := models.Thread{}
 	err := json.NewDecoder(r.Body).Decode(&thread)
 	if err != nil {
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 
@@ -39,7 +39,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 			w.Write(models.MarshalErrorSt("Can't find thread forum"))
 			return
 		}
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 
@@ -49,12 +49,12 @@ func Create(w http.ResponseWriter, r *http.Request) {
 
 		if err != sql.ErrNoRows {
 			if err != nil {
-				log.Println(err)
+				// log.Println(err)
 				return
 			}
 			body, err := json.Marshal(thread2)
 			if err != nil {
-				log.Println(err)
+				// log.Println(err)
 				return
 			}
 
@@ -67,13 +67,13 @@ func Create(w http.ResponseWriter, r *http.Request) {
 	thread.Forum = forum.Slug
 	err = threadRep.InsertThread(&thread)
 	if err != nil {
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 
 	body, err := json.Marshal(thread)
 	if err != nil {
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 
@@ -87,51 +87,48 @@ func Vote(w http.ResponseWriter, r *http.Request) {
 	vote := models.Vote{}
 	err := json.NewDecoder(r.Body).Decode(&vote)
 	if err != nil {
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 
 	vars := mux.Vars(r)
 	slugOrID := vars["slug_or_id"]
 
-	if !userRep.CheckByNickname(vote.Nickname) {
-		w.WriteHeader(http.StatusNotFound)
-		w.Write(models.MarshalErrorSt("Can't find user"))
-		return
-	}
-
-	var thread *models.Thread
+	var thread int
 	id, errInt := strconv.Atoi(slugOrID)
 
 	if errInt != nil {
-		thread, err = threadRep.FindThread(slugOrID)
+		thread, err = threadRep.FindThreadID(slugOrID)
 	} else {
-		thread, err = threadRep.FindThreadByID(id)
+		thread, err = threadRep.FindThreadByIDID(id)
 	}
-
 	if err != nil {
 		if err == sql.ErrNoRows {
 			w.WriteHeader(http.StatusNotFound)
 			w.Write(models.MarshalErrorSt("Can't find thread"))
 			return
 		}
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 
-	vote.Thread = thread.ID
+	vote.Thread = thread
 	err = threadRep.InsertVote(vote)
 	if err != nil {
-		err = threadRep.UpdateVote(vote)
+		// log.Println(err)
+		if strings.Contains(err.Error(), "duplicate key") {
+			err = threadRep.UpdateVote(vote)
+		}
 		if err != nil {
-			log.Println(err)
+			w.WriteHeader(http.StatusNotFound)
+			w.Write(models.MarshalErrorSt("Can't find post author by nickname"))
 			return
 		}
 	}
 
-	threadUpdate, err := threadRep.FindThreadByID(thread.ID)
+	threadUpdate, err := threadRep.FindThreadByID(thread)
 	if err != nil {
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 
@@ -141,7 +138,7 @@ func Vote(w http.ResponseWriter, r *http.Request) {
 
 	body, err := json.Marshal(threadUpdate)
 	if err != nil {
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 
@@ -170,13 +167,13 @@ func Details(w http.ResponseWriter, r *http.Request) {
 			w.Write(models.MarshalErrorSt("Can't find thread"))
 			return
 		}
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 	if r.Method == "GET" {
 		body, err := json.Marshal(thread)
 		if err != nil {
-			log.Println(err)
+			// log.Println(err)
 			return
 		}
 
@@ -188,19 +185,19 @@ func Details(w http.ResponseWriter, r *http.Request) {
 	threadUpdate := models.ThreadUpdate{}
 	err = json.NewDecoder(r.Body).Decode(&threadUpdate)
 	if err != nil {
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 
 	err = threadRep.UpdateThread(thread, threadUpdate)
 	if err != nil {
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 
 	body, err := json.Marshal(thread)
 	if err != nil {
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 

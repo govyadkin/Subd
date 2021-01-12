@@ -38,22 +38,6 @@ func InsertPosts(pos *models.Posts, id int, forum string) error {
 		i++
 	}
 
-	//rows, err := models.DB.Query(query[:len(query)-2]+" RETURNING *;", values...)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//p := models.Post{}
-	//
-	//for rows.Next() {
-	//	err = rows.Scan(&p.Author, &p.Created, &p.Forum, &p.ID, &p.IsEdited, &p.Message, &p.Parent, &p.Thread, &p.Path)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//
-	//	posts = append(posts, p)
-	//}
-
 	_, err = models.DB.Exec("INSERT INTO forum_users (slug, author) VALUES" + authors[:len(authors)-1] + " ON CONFLICT DO NOTHING;")
 
 	return err

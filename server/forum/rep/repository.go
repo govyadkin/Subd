@@ -5,8 +5,8 @@ import (
 )
 
 func InsertForum(forum models.Forum) error {
-	_, err := models.DB.Exec("INSERT INTO forums(slug, title, username) VALUES ($1, $2, $3);",
-		forum.Slug, forum.Title, forum.User)
+	_, err := models.DB.Exec("INSERT INTO forums(username, slug, title) VALUES ($1, $2, $3);",
+		forum.User, forum.Slug, forum.Title)
 	return err
 }
 

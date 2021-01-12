@@ -13,6 +13,22 @@ func InsertThread(thread *models.Thread) error {
 	return err
 }
 
+func FindThreadID(slug string) (int, error) {
+	var tid int
+	err := models.DB.QueryRow("SELECT id FROM threads WHERE slug ILIKE $1;", slug).
+		Scan(&tid)
+
+	return tid, err
+}
+
+func FindThreadByIDID(id int) (int, error) {
+	var tid int
+	err := models.DB.QueryRow("SELECT id FROM threads WHERE id = $1;", id).
+		Scan(&tid)
+
+	return tid, err
+}
+
 func FindThread(slug string) (*models.Thread, error) {
 	th := models.Thread{}
 	err := models.DB.QueryRow("SELECT author, created, forum, id, message, slug, title, votes FROM threads WHERE slug ILIKE $1;", slug).
@@ -31,27 +47,21 @@ func FindThreadByID(id int) (*models.Thread, error) {
 
 func FindThreads(forum, since string, limit int, desc bool) (*models.Threads, error) {
 	threads := models.Threads{}
-	values := make([]interface{}, 0, 3)
+	values := make([]interface{}, 0, 2)
+	symb := '>'
+	descS := ""
+	if desc {
+		symb = '<'
+		descS = "DESC "
+	}
 
-	sqlRow := "SELECT author, created, forum, id, message, slug, title, votes FROM threads WHERE forum ILIKE $1 "
+	sqlRow := "SELECT id, author, created, forum, message, slug, title, votes FROM threads WHERE forum ILIKE $1 "
 	values = append(values, forum)
-	i := 2
 	if since != "" {
-		if desc {
-			sqlRow += "AND created <= $2 "
-		} else {
-			sqlRow += "AND created >= $2 "
-		}
-		i++
+		sqlRow += fmt.Sprintf("AND created %c= $2 ", symb)
 		values = append(values, since)
 	}
-
-	if desc {
-		sqlRow += "ORDER BY created DESC LIMIT $" + fmt.Sprint(i) + ";"
-	} else {
-		sqlRow += "ORDER BY created LIMIT $" + fmt.Sprint(i) + ";"
-	}
-	values = append(values, limit)
+	sqlRow += fmt.Sprintf("ORDER BY created %sLIMIT %d;", descS, limit)
 	rows, err := models.DB.Query(sqlRow, values...)
 
 	if err != nil {
@@ -62,7 +72,7 @@ func FindThreads(forum, since string, limit int, desc bool) (*models.Threads, er
 	th := models.Thread{}
 
 	for rows.Next() {
-		err = rows.Scan(&th.Author, &th.Created, &th.Forum, &th.ID, &th.Message, &th.Slug, &th.Title, &th.Votes)
+		err = rows.Scan(&th.ID, &th.Author, &th.Created, &th.Forum, &th.Message, &th.Slug, &th.Title, &th.Votes)
 		if err != nil {
 			return nil, err
 		}
@@ -98,8 +108,8 @@ func UpdateThread(thread *models.Thread, threadUpdate models.ThreadUpdate) error
 
 		return err
 	} else {
-		err := models.DB.QueryRow("SELECT author, created, forum, id, message, slug, title, votes FROM threads WHERE slug ILIKE $1;", thread.Slug).
-			Scan(&thread.Author, &thread.Created, &thread.Forum, &thread.ID, &thread.Message, &thread.Slug, &thread.Title, &thread.Votes)
+		err := models.DB.QueryRow("SELECT id, author, created, forum, message, slug, title, votes FROM threads WHERE slug ILIKE $1;", thread.Slug).
+			Scan(&thread.ID, &thread.Author, &thread.Created, &thread.Forum, &thread.Message, &thread.Slug, &thread.Title, &thread.Votes)
 
 		return err
 	}

@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"github.com/gorilla/mux"
-	"log"
 	"net/http"
 	"strconv"
 	"subd/dz/models"
@@ -17,7 +16,7 @@ func ClearHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	err := forumRep.ClearForum()
 	if err != nil {
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 
@@ -31,7 +30,7 @@ func StatusHandler(w http.ResponseWriter, r *http.Request) {
 	status := forumRep.StatusForum()
 	body, err := json.Marshal(status)
 	if err != nil {
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 
@@ -46,7 +45,6 @@ func Create(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&forum)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		log.Println(err)
 		return
 	}
 
@@ -58,7 +56,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 			w.Write(models.MarshalErrorSt("Can't find user"))
 			return
 		}
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 
@@ -68,13 +66,13 @@ func Create(w http.ResponseWriter, r *http.Request) {
 	if err == sql.ErrNoRows {
 		err = forumRep.InsertForum(forum)
 		if err != nil {
-			log.Println(err)
+			// log.Println(err)
 			return
 		}
 
 		body, err := json.Marshal(forum)
 		if err != nil {
-			log.Println(err)
+			// log.Println(err)
 			return
 		}
 
@@ -84,13 +82,13 @@ func Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 
 	body, err := json.Marshal(conflictForum)
 	if err != nil {
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 
@@ -112,13 +110,13 @@ func Details(w http.ResponseWriter, r *http.Request) {
 			w.Write(models.MarshalErrorSt("Can't find forum"))
 			return
 		}
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 
 	body, err := json.Marshal(forum)
 	if err != nil {
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 
@@ -152,13 +150,13 @@ func Users(w http.ResponseWriter, r *http.Request) {
 
 	users, err := userRep.FindByForum(slug, since, limit, desc)
 	if err != nil {
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 
 	body, err := json.Marshal(users)
 	if err != nil {
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 
@@ -192,13 +190,13 @@ func Threads(w http.ResponseWriter, r *http.Request) {
 
 	threads, err := threadRep.FindThreads(slug, since, limit, desc)
 	if err != nil {
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 
 	body, err := json.Marshal(threads)
 	if err != nil {
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 

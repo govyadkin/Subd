@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"github.com/gorilla/mux"
-	"log"
 	"net/http"
 	"subd/dz/models"
 	"subd/dz/server/user/rep"
@@ -16,7 +15,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 	user := models.User{}
 	err := json.NewDecoder(r.Body).Decode(&user)
 	if err != nil {
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 
@@ -25,14 +24,14 @@ func Create(w http.ResponseWriter, r *http.Request) {
 
 	users, err := rep.ConflictUsers(user.Email, user.Nickname)
 	if err != nil {
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 
 	if len(*users) > 0 {
 		body, err := json.Marshal(users)
 		if err != nil {
-			log.Println(err)
+			// log.Println(err)
 			return
 		}
 
@@ -43,13 +42,13 @@ func Create(w http.ResponseWriter, r *http.Request) {
 
 	err = rep.Create(user)
 	if err != nil {
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 
 	body, err := json.Marshal(user)
 	if err != nil {
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 
@@ -72,13 +71,13 @@ func Profile(w http.ResponseWriter, r *http.Request) {
 				w.Write(models.MarshalErrorSt("Can't find user"))
 				return
 			}
-			log.Println(err)
+			// log.Println(err)
 			return
 		}
 
 		body, err := json.Marshal(user)
 		if err != nil {
-			log.Println(err)
+			// log.Println(err)
 			return
 		}
 
@@ -90,11 +89,11 @@ func Profile(w http.ResponseWriter, r *http.Request) {
 	userUpdate := models.UserUpdate{}
 	err := json.NewDecoder(r.Body).Decode(&userUpdate)
 	if err != nil {
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 
-	if rep.CheckByEmail(userUpdate.Email) {
+	if userUpdate.Email != "" && rep.CheckByEmail(userUpdate.Email) {
 		w.WriteHeader(http.StatusConflict)
 		w.Write(models.MarshalErrorSt("This email is already exist"))
 		return
@@ -107,13 +106,13 @@ func Profile(w http.ResponseWriter, r *http.Request) {
 			w.Write(models.MarshalErrorSt("Can't find user"))
 			return
 		}
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 
 	body, err := json.Marshal(res)
 	if err != nil {
-		log.Println(err)
+		// log.Println(err)
 		return
 	}
 
