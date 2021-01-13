@@ -10,7 +10,6 @@ import (
 	"subd/dz/models"
 	forumRep "subd/dz/server/forum/rep"
 	threadRep "subd/dz/server/thread/rep"
-	userRep "subd/dz/server/user/rep"
 )
 
 func Create(w http.ResponseWriter, r *http.Request) {
@@ -26,11 +25,11 @@ func Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !userRep.CheckByNickname(thread.Author) {
-		w.WriteHeader(http.StatusNotFound)
-		w.Write(models.MarshalErrorSt("Can't find user"))
-		return
-	}
+	//if !userRep.CheckByNickname(thread.Author) {
+	//	w.WriteHeader(http.StatusNotFound)
+	//	w.Write(models.MarshalErrorSt("Can't find user"))
+	//	return
+	//}
 
 	forum, err := forumRep.FindForum(slug)
 	if err != nil {
@@ -68,6 +67,8 @@ func Create(w http.ResponseWriter, r *http.Request) {
 	err = threadRep.InsertThread(&thread)
 	if err != nil {
 		// log.Println(err)
+		w.WriteHeader(http.StatusNotFound)
+		w.Write(models.MarshalErrorSt("Can't find user"))
 		return
 	}
 

@@ -45,6 +45,12 @@ func ConflictUsers(email, nickname string) (*models.Users, error) {
 
 	return &users, nil
 }
+func CheckByNicknameR(nickname string) (string, error) {
+	err := models.DB.QueryRow("SELECT nickname FROM users WHERE nickname ILIKE $1;", nickname).
+		Scan(&nickname)
+
+	return nickname, err
+}
 
 func FindByNickname(nickname string) (*models.User, error) {
 	user := models.User{}
@@ -107,7 +113,7 @@ func FindByForum(slug, since string, limit int, desc bool) (*models.Users, error
 		descS = "DESC "
 	}
 	sqlRek := "SELECT users.about, users.email, users.fullname, users.nickname FROM forum_users " +
-		"JOIN users ON LOWER(users.nickname) = LOWER(forum_users.author) WHERE LOWER(slug) = LOWER($1) "
+		"JOIN users ON LOWER(users.nickname) = LOWER(forum_users.author) WHERE slug ILIKE $1 "
 
 	values := make([]interface{}, 0, 2)
 

@@ -104,8 +104,8 @@ func FindByID(id int) (*models.Post, error) {
 
 func UpdatePost(post *models.Post, postUpdate models.PostUpdate) error {
 	if postUpdate.Message != "" && postUpdate.Message != post.Message {
-		err := models.DB.QueryRow("UPDATE posts SET message=$1, is_edited=true WHERE id=$2 RETURNING *;", postUpdate.Message, post.ID).
-			Scan(&post.Author, &post.Created, &post.Forum, &post.ID, &post.IsEdited, &post.Message, &post.Parent, &post.Thread, &post.Path)
+		err := models.DB.QueryRow("UPDATE posts SET message=$1, is_edited=true WHERE id=$2 RETURNING is_edited, message;", postUpdate.Message, post.ID).
+			Scan(&post.IsEdited, &post.Message)
 		return err
 	}
 	return nil

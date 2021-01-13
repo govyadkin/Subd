@@ -48,7 +48,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := userRep.FindByNickname(forum.User)
+	user, err := userRep.CheckByNicknameR(forum.User)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -60,7 +60,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	forum.User = user.Nickname
+	forum.User = user
 
 	conflictForum, err := forumRep.FindForum(forum.Slug)
 	if err == sql.ErrNoRows {

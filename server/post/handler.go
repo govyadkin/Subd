@@ -20,14 +20,15 @@ func Create(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	slugOrID := vars["slug_or_id"]
 
-	var thread *models.Thread
+	var thread int
+	var forum string
 	var err error
 	id, errInt := strconv.Atoi(slugOrID)
 
 	if errInt != nil {
-		thread, err = threadRep.FindThread(slugOrID)
+		thread, forum, err = threadRep.FindThreadIDForum(slugOrID)
 	} else {
-		thread, err = threadRep.FindThreadByID(id)
+		thread, forum, err = threadRep.FindThreadByIDIDForum(id)
 	}
 
 	if err != nil {
@@ -49,7 +50,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = postRep.InsertPosts(&posts, thread.ID, thread.Forum)
+	err = postRep.InsertPosts(&posts, thread, forum)
 
 	if err != nil {
 		if strings.Contains(err.Error(), "bad parent thread") {

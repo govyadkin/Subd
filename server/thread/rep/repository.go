@@ -4,13 +4,31 @@ import (
 	"fmt"
 	"subd/dz/models"
 )
-
+// !!!!!
 func InsertThread(thread *models.Thread) error {
-	err := models.DB.QueryRow("INSERT INTO threads(author, created, forum, message, slug, title) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;",
+	err := models.DB.QueryRow("INSERT INTO threads(author, created, forum, message, slug, title) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, votes;",
 		thread.Author, thread.Created, thread.Forum, thread.Message, thread.Slug, thread.Title).
-		Scan(&thread.ID, &thread.Author, &thread.Created, &thread.Forum, &thread.Message, &thread.Slug, &thread.Title, &thread.Votes)
+		Scan(&thread.ID, &thread.Votes)
 
 	return err
+}
+
+func FindThreadIDForum(slug string) (int, string, error) {
+	var tid int
+	var ff string
+	err := models.DB.QueryRow("SELECT id, forum FROM threads WHERE slug ILIKE $1;", slug).
+		Scan(&tid, &ff)
+
+	return tid, ff, err
+}
+
+func FindThreadByIDIDForum(id int) (int, string, error) {
+	var tid int
+	var ff string
+	err := models.DB.QueryRow("SELECT id, forum FROM threads WHERE id = $1;", id).
+		Scan(&tid, &ff)
+
+	return tid, ff, err
 }
 
 func FindThreadID(slug string) (int, error) {
@@ -101,18 +119,20 @@ func UpdateThread(thread *models.Thread, threadUpdate models.ThreadUpdate) error
 	}
 
 	if i > 1 {
-		sqlRow := "UPDATE threads SET" + s + " WHERE slug ILIKE $" + fmt.Sprint(i) + " RETURNING *;"
+		sqlRow := "UPDATE threads SET" + s + " WHERE slug ILIKE $" + fmt.Sprint(i) + " RETURNING message, title;"
 		values = append(values, thread.Slug)
 		err := models.DB.QueryRow(sqlRow, values...).
-			Scan(&thread.ID, &thread.Author, &thread.Created, &thread.Forum, &thread.Message, &thread.Slug, &thread.Title, &thread.Votes)
-
-		return err
-	} else {
-		err := models.DB.QueryRow("SELECT id, author, created, forum, message, slug, title, votes FROM threads WHERE slug ILIKE $1;", thread.Slug).
-			Scan(&thread.ID, &thread.Author, &thread.Created, &thread.Forum, &thread.Message, &thread.Slug, &thread.Title, &thread.Votes)
+			Scan(&thread.Message, &thread.Title)
 
 		return err
 	}
+	//} else {
+	//	//err := models.DB.QueryRow("SELECT id, author, created, forum, message, slug, title, votes FROM threads WHERE slug ILIKE $1;", thread.Slug).
+	//	//	Scan(&thread.ID, &thread.Author, &thread.Created, &thread.Forum, &thread.Message, &thread.Slug, &thread.Title, &thread.Votes)
+	//
+	//	//return err
+	//}
+	return nil
 }
 
 func InsertVote(vote models.Vote) error {

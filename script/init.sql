@@ -16,7 +16,7 @@ CREATE UNLOGGED TABLE "forums" (
   FOREIGN KEY ("username") REFERENCES "users" (nickname)
 );
 
-CREATE INDEX index_forums_slug ON forums USING hash (lower(slug));
+CREATE INDEX index_forums_slug ON forums (lower(slug));
 CREATE INDEX index_users_fk ON forums (lower(author));
 -- CREATE INDEX index_forum_all ON forums (slug, title, author, posts, threads);
 
@@ -29,8 +29,8 @@ CREATE UNLOGGED TABLE "threads" (
   "slug" varchar,
   "title" varchar NOT NULL,
   "votes" int DEFAULT 0,
-  FOREIGN KEY (author) REFERENCES "users" (nickname),
-  FOREIGN KEY (forum) REFERENCES "forums" (slug)
+  FOREIGN KEY (author) REFERENCES "users" (nickname)
+--   FOREIGN KEY (forum) REFERENCES "forums" (slug)
 );
 
 CREATE INDEX index_threads_slug ON threads (lower(slug));
@@ -51,22 +51,20 @@ CREATE UNLOGGED TABLE "posts" (
   "thread" int,
   "path" BIGINT[] DEFAULT ARRAY []::INTEGER[],
   
-  FOREIGN KEY (author) REFERENCES "users" (nickname),
-  FOREIGN KEY (forum) REFERENCES "forums" (slug),
-  FOREIGN KEY (thread) REFERENCES "threads" (id),
-  FOREIGN KEY (parent) REFERENCES "posts" (id)
+  FOREIGN KEY (author) REFERENCES "users" (nickname)
+--   FOREIGN KEY (forum) REFERENCES "forums" (slug)
+--   FOREIGN KEY (thread) REFERENCES "threads" (id)
+--   FOREIGN KEY (parent) REFERENCES "posts" (id)
 );
 
 CREATE INDEX index_posts_thread ON posts (thread);
--- CREATE INDEX index_post_thread_path ON posts (thread, path);
-CREATE INDEX index_posts_author ON posts (lower(author), id, path);
-CREATE INDEX index_posts_author ON posts (lower(author), path);
-CREATE INDEX index_posts_author ON posts (lower(author), (path[1]));
-CREATE INDEX index_posts_author ON posts (lower(author), parent);
+CREATE INDEX index_posts_author ON posts (thread, id, path);
+CREATE INDEX index_posts_author ON posts (thread, path);
+CREATE INDEX index_posts_author ON posts (thread, (path[1]));
+CREATE INDEX index_posts_author ON posts (thread, parent);
 -- CREATE INDEX index_post_thread_parent_path ON posts (thread, parent, path);
 CREATE INDEX index_post_path1_path ON posts ((path[1]), path);
--- CREATE INDEX index_posts_author ON posts (author,thread);
-CREATE INDEX index_post_forum_fk ON posts (forum);
+-- CREATE INDEX index_post_forum_fk ON posts (forum);
 -- CREATE INDEX index_post_thread_created_id ON posts (thread, created, id);
 
 CREATE UNLOGGED TABLE "votes" (
@@ -75,7 +73,7 @@ CREATE UNLOGGED TABLE "votes" (
   "thread" int,
   
    FOREIGN KEY (nickname) REFERENCES "users" (nickname),
-   FOREIGN KEY (thread) REFERENCES "threads" (id),
+--    FOREIGN KEY (thread) REFERENCES "threads" (id),
    UNIQUE (nickname, thread)
 );
 
@@ -84,10 +82,11 @@ CREATE INDEX index_votes_thread_nick ON votes (thread, lower(nickname));
 CREATE UNLOGGED TABLE forum_users
 (
     author varchar REFERENCES users (nickname) ON DELETE CASCADE NOT NULL,
-    slug   varchar REFERENCES forums (slug) ON DELETE CASCADE NOT NULL,
+--     slug   varchar REFERENCES forums (slug) ON DELETE CASCADE NOT NULL,
+    slug   varchar NOT NULL,
     UNIQUE (author, slug)
 );
-CREATE UNIQUE INDEX on forum_users (slug, author);
+CREATE INDEX on forum_users (lower(slug));
 
 CREATE OR REPLACE FUNCTION update_threads_count() RETURNS TRIGGER AS
 $update_users_forum$
@@ -118,13 +117,6 @@ CREATE TRIGGER thread_insert_forum
     ON threads
     FOR EACH ROW
 EXECUTE PROCEDURE update_forum_users_by_insert_th_or_post();
-
--- CREATE TRIGGER update_forum_users_posts
---     AFTER INSERT
---     ON posts
---     FOR EACH ROW
--- EXECUTE PROCEDURE update_forum_users_by_insert_th_or_post();
-
 
 CREATE OR REPLACE FUNCTION update_path() RETURNS TRIGGER AS
 $update_path$
