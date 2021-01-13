@@ -2,9 +2,10 @@ package forum
 
 import (
 	"database/sql"
-	"encoding/json"
-	"github.com/gorilla/mux"
-	"net/http"
+	json "github.com/mailru/easyjson"
+
+	//"encoding/json"
+	"github.com/valyala/fasthttp"
 	"strconv"
 	"subd/dz/models"
 	forumRep "subd/dz/server/forum/rep"
@@ -12,20 +13,20 @@ import (
 	userRep "subd/dz/server/user/rep"
 )
 
-func ClearHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+func ClearHandler(ctx *fasthttp.RequestCtx) {
+	ctx.SetContentType("application/json")
 	err := forumRep.ClearForum()
 	if err != nil {
 		// log.Println(err)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("null"))
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.Write([]byte("null"))
 }
 
-func StatusHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+func StatusHandler(ctx *fasthttp.RequestCtx) {
+	ctx.SetContentType("application/json")
 
 	status := forumRep.StatusForum()
 	body, err := json.Marshal(status)
@@ -34,17 +35,16 @@ func StatusHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write(body)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.Write(body)
 }
 
-func Create(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+func Create(ctx *fasthttp.RequestCtx) {
+	ctx.SetContentType("application/json")
 
 	forum := models.Forum{}
-	err := json.NewDecoder(r.Body).Decode(&forum)
+	err := json.Unmarshal(ctx.PostBody(), &forum)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -52,8 +52,8 @@ func Create(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			w.WriteHeader(http.StatusNotFound)
-			w.Write(models.MarshalErrorSt("Can't find user"))
+			ctx.SetStatusCode(fasthttp.StatusNotFound)
+			ctx.Write(models.MarshalErrorSt("Can't find user"))
 			return
 		}
 		// log.Println(err)
@@ -76,8 +76,8 @@ func Create(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		w.WriteHeader(http.StatusCreated)
-		w.Write(body)
+		ctx.SetStatusCode(fasthttp.StatusCreated)
+		ctx.Write(body)
 
 		return
 	}
@@ -92,22 +92,21 @@ func Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusConflict)
-	w.Write(body)
+	ctx.SetStatusCode(fasthttp.StatusConflict)
+	ctx.Write(body)
 }
 
-func Details(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+func Details(ctx *fasthttp.RequestCtx) {
+	ctx.SetContentType("application/json")
 
-	vars := mux.Vars(r)
-	slug := vars["slug"]
+	slug := ctx.UserValue("slug").(string)
 
 	forum, err := forumRep.FindForum(slug)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			w.WriteHeader(http.StatusNotFound)
-			w.Write(models.MarshalErrorSt("Can't find forum"))
+			ctx.SetStatusCode(fasthttp.StatusNotFound)
+			ctx.Write(models.MarshalErrorSt("Can't find forum"))
 			return
 		}
 		// log.Println(err)
@@ -120,31 +119,31 @@ func Details(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write(body)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.Write(body)
 }
 
-func Users(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+func Users(ctx *fasthttp.RequestCtx) {
+	ctx.SetContentType("application/json")
 
-	vars := mux.Vars(r)
-	slug := vars["slug"]
+	slug := ctx.UserValue("slug").(string)
 
-	limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
+	query := ctx.QueryArgs()
+	limit, err := strconv.Atoi(string(query.Peek("limit")))
 	if err != nil {
 		limit = 100
 	}
 
-	since := r.URL.Query().Get("since")
+	since := string(query.Peek("since"))
 
-	desc, err := strconv.ParseBool(r.URL.Query().Get("desc"))
-	if err != nil {
-		desc = false
-	}
+	desc := query.GetBool("desc")
+	//if err != nil {
+	//	desc = false
+	//}
 
 	if !forumRep.CheckForum(slug) {
-		w.WriteHeader(http.StatusNotFound)
-		w.Write(models.MarshalErrorSt("Can't find forum"))
+		ctx.SetStatusCode(fasthttp.StatusNotFound)
+		ctx.Write(models.MarshalErrorSt("Can't find forum"))
 		return
 	}
 
@@ -160,31 +159,31 @@ func Users(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write(body)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.Write(body)
 }
 
-func Threads(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+func Threads(ctx *fasthttp.RequestCtx) {
+	ctx.SetContentType("application/json")
 
-	limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
+	query := ctx.QueryArgs()
+	limit, err := strconv.Atoi(string(query.Peek("limit")))
 	if err != nil {
 		limit = 100
 	}
 
-	since := r.URL.Query().Get("since")
+	since := string(query.Peek("since"))
 
-	desc, err := strconv.ParseBool(r.URL.Query().Get("desc"))
-	if err != nil {
-		desc = false
-	}
+	desc := query.GetBool("desc")
+	//if err != nil {
+	//	desc = false
+	//}
 
-	vars := mux.Vars(r)
-	slug := vars["slug"]
+	slug := ctx.UserValue("slug").(string)
 
 	if !forumRep.CheckForum(slug) {
-		w.WriteHeader(http.StatusNotFound)
-		w.Write(models.MarshalErrorSt("Can't find forum"))
+		ctx.SetStatusCode(fasthttp.StatusNotFound)
+		ctx.Write(models.MarshalErrorSt("Can't find forum"))
 		return
 	}
 
@@ -200,6 +199,6 @@ func Threads(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write(body)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.Write(body)
 }

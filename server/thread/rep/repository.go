@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"subd/dz/models"
 )
+
 // !!!!!
 func InsertThread(thread *models.Thread) error {
 	err := models.DB.QueryRow("INSERT INTO threads(author, created, forum, message, slug, title) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, votes;",

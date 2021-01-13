@@ -2,9 +2,8 @@ package thread
 
 import (
 	"database/sql"
-	"encoding/json"
-	"github.com/gorilla/mux"
-	"net/http"
+	json "github.com/mailru/easyjson"
+	"github.com/valyala/fasthttp"
 	"strconv"
 	"strings"
 	"subd/dz/models"
@@ -12,33 +11,32 @@ import (
 	threadRep "subd/dz/server/thread/rep"
 )
 
-func Create(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+func Create(ctx *fasthttp.RequestCtx) {
+	ctx.SetContentType("application/json")
 
-	vars := mux.Vars(r)
-	slug := vars["slug"]
+	slug := ctx.UserValue("slug").(string)
 
 	thread := models.Thread{}
-	err := json.NewDecoder(r.Body).Decode(&thread)
+	err := json.Unmarshal(ctx.PostBody(), &thread)
 	if err != nil {
-		// log.Println(err)
+		//log.Println(err)
 		return
 	}
 
 	//if !userRep.CheckByNickname(thread.Author) {
-	//	w.WriteHeader(http.StatusNotFound)
-	//	w.Write(models.MarshalErrorSt("Can't find user"))
+	//	 ctx.SetStatusCode(fasthttp.StatusNotFound)
+	//	ctx.Write(models.MarshalErrorSt("Can't find user"))
 	//	return
 	//}
 
 	forum, err := forumRep.FindForum(slug)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			w.WriteHeader(http.StatusNotFound)
-			w.Write(models.MarshalErrorSt("Can't find thread forum"))
+			ctx.SetStatusCode(fasthttp.StatusNotFound)
+			ctx.Write(models.MarshalErrorSt("Can't find thread forum"))
 			return
 		}
-		// log.Println(err)
+		//log.Println(err)
 		return
 	}
 
@@ -48,17 +46,17 @@ func Create(w http.ResponseWriter, r *http.Request) {
 
 		if err != sql.ErrNoRows {
 			if err != nil {
-				// log.Println(err)
+				//log.Println(err)
 				return
 			}
 			body, err := json.Marshal(thread2)
 			if err != nil {
-				// log.Println(err)
+				//log.Println(err)
 				return
 			}
 
-			w.WriteHeader(http.StatusConflict)
-			w.Write(body)
+			ctx.SetStatusCode(fasthttp.StatusConflict)
+			ctx.Write(body)
 			return
 		}
 	}
@@ -66,34 +64,33 @@ func Create(w http.ResponseWriter, r *http.Request) {
 	thread.Forum = forum.Slug
 	err = threadRep.InsertThread(&thread)
 	if err != nil {
-		// log.Println(err)
-		w.WriteHeader(http.StatusNotFound)
-		w.Write(models.MarshalErrorSt("Can't find user"))
+		//log.Println(err)
+		ctx.SetStatusCode(fasthttp.StatusNotFound)
+		ctx.Write(models.MarshalErrorSt("Can't find user"))
 		return
 	}
 
 	body, err := json.Marshal(thread)
 	if err != nil {
-		// log.Println(err)
+		//log.Println(err)
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	w.Write(body)
+	ctx.SetStatusCode(fasthttp.StatusCreated)
+	ctx.Write(body)
 }
 
-func Vote(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+func Vote(ctx *fasthttp.RequestCtx) {
+	ctx.SetContentType("application/json")
 
 	vote := models.Vote{}
-	err := json.NewDecoder(r.Body).Decode(&vote)
+	err := json.Unmarshal(ctx.PostBody(), &vote)
 	if err != nil {
 		// log.Println(err)
 		return
 	}
 
-	vars := mux.Vars(r)
-	slugOrID := vars["slug_or_id"]
+	slugOrID := ctx.UserValue("slug_or_id").(string)
 
 	var thread int
 	id, errInt := strconv.Atoi(slugOrID)
@@ -105,8 +102,8 @@ func Vote(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		if err == sql.ErrNoRows {
-			w.WriteHeader(http.StatusNotFound)
-			w.Write(models.MarshalErrorSt("Can't find thread"))
+			ctx.SetStatusCode(fasthttp.StatusNotFound)
+			ctx.Write(models.MarshalErrorSt("Can't find thread"))
 			return
 		}
 		// log.Println(err)
@@ -121,8 +118,8 @@ func Vote(w http.ResponseWriter, r *http.Request) {
 			err = threadRep.UpdateVote(vote)
 		}
 		if err != nil {
-			w.WriteHeader(http.StatusNotFound)
-			w.Write(models.MarshalErrorSt("Can't find post author by nickname"))
+			ctx.SetStatusCode(fasthttp.StatusNotFound)
+			ctx.Write(models.MarshalErrorSt("Can't find post author by nickname"))
 			return
 		}
 	}
@@ -143,15 +140,14 @@ func Vote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write(body)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.Write(body)
 }
 
-func Details(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+func Details(ctx *fasthttp.RequestCtx) {
+	ctx.SetContentType("application/json")
 
-	vars := mux.Vars(r)
-	slugOrID := vars["slug_or_id"]
+	slugOrID := ctx.UserValue("slug_or_id").(string)
 
 	var thread *models.Thread
 	id, errInt := strconv.Atoi(slugOrID)
@@ -164,27 +160,51 @@ func Details(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			w.WriteHeader(http.StatusNotFound)
-			w.Write(models.MarshalErrorSt("Can't find thread"))
+			ctx.SetStatusCode(fasthttp.StatusNotFound)
+			ctx.Write(models.MarshalErrorSt("Can't find thread"))
 			return
 		}
 		// log.Println(err)
 		return
 	}
-	if r.Method == "GET" {
-		body, err := json.Marshal(thread)
-		if err != nil {
-			// log.Println(err)
+	body, err := json.Marshal(thread)
+	if err != nil {
+		// log.Println(err)
+		return
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.Write(body)
+	return
+
+}
+
+func DetailsPOST(ctx *fasthttp.RequestCtx) {
+	ctx.SetContentType("application/json")
+
+	slugOrID := ctx.UserValue("slug_or_id").(string)
+
+	var thread *models.Thread
+	id, errInt := strconv.Atoi(slugOrID)
+	var err error
+	if errInt != nil {
+		thread, err = threadRep.FindThread(slugOrID)
+	} else {
+		thread, err = threadRep.FindThreadByID(id)
+	}
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			ctx.SetStatusCode(fasthttp.StatusNotFound)
+			ctx.Write(models.MarshalErrorSt("Can't find thread"))
 			return
 		}
-
-		w.WriteHeader(http.StatusOK)
-		w.Write(body)
+		// log.Println(err)
 		return
 	}
 
 	threadUpdate := models.ThreadUpdate{}
-	err = json.NewDecoder(r.Body).Decode(&threadUpdate)
+	err = json.Unmarshal(ctx.PostBody(), &threadUpdate)
 	if err != nil {
 		// log.Println(err)
 		return
@@ -202,6 +222,6 @@ func Details(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write(body)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.Write(body)
 }

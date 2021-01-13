@@ -2,25 +2,23 @@ package user
 
 import (
 	"database/sql"
-	"encoding/json"
-	"github.com/gorilla/mux"
-	"net/http"
+	json "github.com/mailru/easyjson"
+	"github.com/valyala/fasthttp"
 	"subd/dz/models"
 	"subd/dz/server/user/rep"
 )
 
-func Create(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+func Create(ctx *fasthttp.RequestCtx) {
+	ctx.SetContentType("application/json")
 
 	user := models.User{}
-	err := json.NewDecoder(r.Body).Decode(&user)
+	err := json.Unmarshal(ctx.Request.Body(), &user)
 	if err != nil {
 		// log.Println(err)
 		return
 	}
 
-	vars := mux.Vars(r)
-	user.Nickname = vars["nickname"]
+	user.Nickname = ctx.UserValue("nickname").(string)
 
 	users, err := rep.ConflictUsers(user.Email, user.Nickname)
 	if err != nil {
@@ -35,8 +33,8 @@ func Create(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		w.WriteHeader(http.StatusConflict)
-		w.Write(body)
+		ctx.SetStatusCode(fasthttp.StatusConflict)
+		ctx.Write(body)
 		return
 	}
 
@@ -52,58 +50,62 @@ func Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	w.Write(body)
+	ctx.SetStatusCode(fasthttp.StatusCreated)
+	ctx.Write(body)
 }
 
-func Profile(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+func Profile(ctx *fasthttp.RequestCtx) {
+	ctx.SetContentType("application/json")
 
-	vars := mux.Vars(r)
-	nickname := vars["nickname"]
+	nickname := ctx.UserValue("nickname").(string)
 
-	if r.Method == "GET" {
-		user, err := rep.FindByNickname(nickname)
+	user, err := rep.FindByNickname(nickname)
 
-		if err != nil {
-			if err == sql.ErrNoRows {
-				w.WriteHeader(http.StatusNotFound)
-				w.Write(models.MarshalErrorSt("Can't find user"))
-				return
-			}
-			// log.Println(err)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			ctx.SetStatusCode(fasthttp.StatusNotFound)
+			ctx.Write(models.MarshalErrorSt("Can't find user"))
 			return
 		}
-
-		body, err := json.Marshal(user)
-		if err != nil {
-			// log.Println(err)
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-		w.Write(body)
+		// log.Println(err)
 		return
 	}
 
+	body, err := json.Marshal(user)
+	if err != nil {
+		// log.Println(err)
+		return
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.Write(body)
+	return
+
+}
+
+func ProfilePOST(ctx *fasthttp.RequestCtx) {
+	ctx.SetContentType("application/json")
+
+	nickname := ctx.UserValue("nickname").(string)
+
 	userUpdate := models.UserUpdate{}
-	err := json.NewDecoder(r.Body).Decode(&userUpdate)
+	err := json.Unmarshal(ctx.PostBody(), &userUpdate)
 	if err != nil {
 		// log.Println(err)
 		return
 	}
 
 	if userUpdate.Email != "" && rep.CheckByEmail(userUpdate.Email) {
-		w.WriteHeader(http.StatusConflict)
-		w.Write(models.MarshalErrorSt("This email is already exist"))
+		ctx.SetStatusCode(fasthttp.StatusConflict)
+		ctx.Write(models.MarshalErrorSt("This email is already exist"))
 		return
 	}
 
 	res, err := rep.UpdateUser(nickname, userUpdate)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			w.WriteHeader(http.StatusNotFound)
-			w.Write(models.MarshalErrorSt("Can't find user"))
+			ctx.SetStatusCode(fasthttp.StatusNotFound)
+			ctx.Write(models.MarshalErrorSt("Can't find user"))
 			return
 		}
 		// log.Println(err)
@@ -116,7 +118,7 @@ func Profile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write(body)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.Write(body)
 	return
 }

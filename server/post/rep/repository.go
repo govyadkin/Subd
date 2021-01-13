@@ -70,7 +70,7 @@ func FindPosts(author int, limit, since int, sort string, desc bool) (*models.Po
 		}
 		//sqlRec += fmt.Sprintf("WHERE p.path[1] IN (SELECT id FROM posts WHERE thread = %d AND parent IS NULL %sORDER BY id %s LIMIT %d)ORDER BY p.path[1] %s, p.path;",
 		//	author, and, descS, limit, descS)
-		sqlRec += fmt.Sprintf("JOIN (SELECT path FROM posts WHERE thread = %d AND parent IS NULL %sORDER BY id %s LIMIT %d) AS prnt ON prnt.path[1] = p.path[1] ORDER BY p.path[1] %s, p.path;",
+		sqlRec += fmt.Sprintf("JOIN (SELECT path FROM posts WHERE thread = %d AND parent = 0 %sORDER BY id %s LIMIT %d) AS prnt ON prnt.path[1] = p.path[1] ORDER BY p.path[1] %s, p.path;",
 			author, and, descS, limit, descS)
 	}
 

@@ -3,15 +3,17 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"github.com/gorilla/mux"
+	//"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"log"
-	"net/http"
 	"subd/dz/models"
 	"subd/dz/server/forum"
 	"subd/dz/server/post"
 	"subd/dz/server/thread"
 	"subd/dz/server/user"
+
+	"github.com/fasthttp/router"
+	"github.com/valyala/fasthttp"
 )
 
 func DBConnection() *sql.DB {
@@ -36,29 +38,30 @@ func DBConnection() *sql.DB {
 func main() {
 	models.DB = DBConnection()
 
-	router := mux.NewRouter()
+	router := router.New()
 
-	router.HandleFunc("/api/forum/create", forum.Create).Methods(http.MethodPost)
-	router.HandleFunc("/api/forum/{slug}/details", forum.Details).Methods(http.MethodGet)
-	router.HandleFunc("/api/forum/{slug}/create", thread.Create).Methods(http.MethodPost)
-	router.HandleFunc("/api/forum/{slug}/users", forum.Users).Methods(http.MethodGet)
-	router.HandleFunc("/api/forum/{slug}/threads", forum.Threads).Methods(http.MethodGet)
+	router.POST("/api/forum/create", forum.Create)
+	router.GET("/api/forum/{slug}/details", forum.Details)
+	router.POST("/api/forum/{slug}/create", thread.Create)
+	router.GET("/api/forum/{slug}/users", forum.Users)
+	router.GET("/api/forum/{slug}/threads", forum.Threads)
 
-	router.HandleFunc("/api/post/{id:[0-9]+}/details", post.Details).Methods(http.MethodGet, http.MethodPost)
+	router.GET("/api/post/{id:[0-9]+}/details", post.Details)
+	router.POST("/api/post/{id:[0-9]+}/details", post.DetailsPOST)
 
-	router.HandleFunc("/api/service/clear", forum.ClearHandler).Methods(http.MethodPost)
-	router.HandleFunc("/api/service/status", forum.StatusHandler).Methods(http.MethodGet)
+	router.POST("/api/service/clear", forum.ClearHandler)
+	router.GET("/api/service/status", forum.StatusHandler)
 
-	router.HandleFunc("/api/thread/{slug_or_id}/create", post.Create).Methods(http.MethodPost)
-	router.HandleFunc("/api/thread/{slug_or_id}/details", thread.Details).Methods(http.MethodGet, http.MethodPost)
-	router.HandleFunc("/api/thread/{slug_or_id}/posts", post.ThreadPosts).Methods(http.MethodGet)
-	router.HandleFunc("/api/thread/{slug_or_id}/vote", thread.Vote).Methods(http.MethodPost)
+	router.POST("/api/thread/{slug_or_id}/create", post.Create)
+	router.GET("/api/thread/{slug_or_id}/details", thread.Details)
+	router.POST("/api/thread/{slug_or_id}/details", thread.DetailsPOST)
+	router.GET("/api/thread/{slug_or_id}/posts", post.ThreadPosts)
+	router.POST("/api/thread/{slug_or_id}/vote", thread.Vote)
 
-	router.HandleFunc("/api/user/{nickname}/create", user.Create).Methods(http.MethodPost)
-	router.HandleFunc("/api/user/{nickname}/profile", user.Profile).Methods(http.MethodGet, http.MethodPost)
-
-	http.Handle("/", router)
+	router.POST("/api/user/{nickname}/create", user.Create)
+	router.GET("/api/user/{nickname}/profile", user.Profile)
+	router.POST("/api/user/{nickname}/profile", user.ProfilePOST)
 
 	fmt.Println("Starting server at: 5000")
-	http.ListenAndServe(":5000", nil)
+	fasthttp.ListenAndServe(":5000", router.Handler)
 }

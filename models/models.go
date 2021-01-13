@@ -2,8 +2,8 @@ package models
 
 import (
 	"database/sql"
-	"encoding/json"
 	"github.com/jackc/pgtype"
+	json "github.com/mailru/easyjson"
 	"time"
 )
 
@@ -27,6 +27,7 @@ type User struct {
 	Email    string `json:"email"`
 }
 
+//easyjson:json
 type Users []User
 
 type UserUpdate struct {
@@ -54,6 +55,7 @@ type Thread struct {
 	Created time.Time `json:"created"`
 }
 
+//easyjson:json
 type Threads []Thread
 
 type ThreadUpdate struct {
@@ -63,7 +65,7 @@ type ThreadUpdate struct {
 
 type Post struct {
 	ID       int              `json:"id"`
-	Parent   JsonNullInt64    `json:"parent"`
+	Parent   int64            `json:"parent"`
 	Author   string           `json:"author"`
 	Message  string           `json:"message"`
 	IsEdited bool             `json:"isEdited"`
@@ -73,6 +75,7 @@ type Post struct {
 	Path     pgtype.Int8Array `json:"-"`
 }
 
+//easyjson:json
 type Posts []Post
 
 type PostUpdate struct {
@@ -91,32 +94,32 @@ type Vote struct {
 	Voice    int    `json:"voice"`
 	Thread   int    `json:"-"`
 }
-
-type JsonNullInt64 struct {
-	sql.NullInt64
-}
-
-func (v JsonNullInt64) MarshalJSON() ([]byte, error) {
-	if v.Valid {
-		return json.Marshal(v.Int64)
-	} else {
-		return json.Marshal(nil)
-	}
-}
-
-func (v *JsonNullInt64) UnmarshalJSON(data []byte) error {
-	var x *int64
-	if err := json.Unmarshal(data, &x); err != nil {
-		return err
-	}
-	if x != nil {
-		v.Valid = true
-		v.Int64 = *x
-	} else {
-		v.Valid = false
-	}
-	return nil
-}
+//
+//type JsonNullInt64 struct {
+//	sql.NullInt64
+//}
+//
+//func (v JsonNullInt64) MarshalJSON() ([]byte, error) {
+//	if v.Valid {
+//		return json.Marshal(v.Int64)
+//	} else {
+//		return json.Marshal(nil)
+//	}
+//}
+//
+//func (v *JsonNullInt64) UnmarshalJSON(data []byte) error {
+//	var x *int64
+//	if err := json.Unmarshal(data, &x); err != nil {
+//		return err
+//	}
+//	if x != nil {
+//		v.Valid = true
+//		v.Int64 = *x
+//	} else {
+//		v.Valid = false
+//	}
+//	return nil
+//}
 
 func MarshalErrorSt(message string) []byte {
 	jsonError, err := json.Marshal(Error{Message: message})

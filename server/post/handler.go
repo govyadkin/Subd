@@ -2,9 +2,8 @@ package post
 
 import (
 	"database/sql"
-	"encoding/json"
-	"github.com/gorilla/mux"
-	"net/http"
+	json "github.com/mailru/easyjson"
+	"github.com/valyala/fasthttp"
 	"strconv"
 	"strings"
 	"subd/dz/models"
@@ -14,11 +13,10 @@ import (
 	userRep "subd/dz/server/user/rep"
 )
 
-func Create(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+func Create(ctx *fasthttp.RequestCtx) {
+	ctx.SetContentType("application/json")
 
-	vars := mux.Vars(r)
-	slugOrID := vars["slug_or_id"]
+	slugOrID := ctx.UserValue("slug_or_id").(string)
 
 	var thread int
 	var forum string
@@ -33,8 +31,8 @@ func Create(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			w.WriteHeader(http.StatusNotFound)
-			w.Write(models.MarshalErrorSt("Can't find post thread"))
+			ctx.SetStatusCode(fasthttp.StatusNotFound)
+			ctx.Write(models.MarshalErrorSt("Can't find post thread"))
 			return
 		}
 		// log.Println(err)
@@ -42,11 +40,11 @@ func Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	posts := models.Posts{}
-	err = json.NewDecoder(r.Body).Decode(&posts)
+	err = json.Unmarshal(ctx.PostBody(), &posts)
 	if err != nil {
 		// log.Println(err)
-		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte("[]"))
+		ctx.SetStatusCode(fasthttp.StatusCreated)
+		ctx.Write([]byte("[]"))
 		return
 	}
 
@@ -54,12 +52,12 @@ func Create(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		if strings.Contains(err.Error(), "bad parent thread") {
-			w.WriteHeader(http.StatusConflict)
-			w.Write(models.MarshalErrorSt("Parent post was created in another thread"))
+			ctx.SetStatusCode(fasthttp.StatusConflict)
+			ctx.Write(models.MarshalErrorSt("Parent post was created in another thread"))
 			return
 		}
-		w.WriteHeader(http.StatusNotFound)
-		w.Write(models.MarshalErrorSt("Can't find post author by nickname"))
+		ctx.SetStatusCode(fasthttp.StatusNotFound)
+		ctx.Write(models.MarshalErrorSt("Can't find post author by nickname"))
 		return
 	}
 
@@ -69,31 +67,30 @@ func Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	w.Write(body)
+	ctx.SetStatusCode(fasthttp.StatusCreated)
+	ctx.Write(body)
 }
 
-func ThreadPosts(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
+func ThreadPosts(ctx *fasthttp.RequestCtx) {
+	ctx.SetContentType("application/json")
+	query := ctx.QueryArgs()
+	limit, err := strconv.Atoi(string(query.Peek("limit")))
 	if err != nil {
 		limit = 100
 	}
 
-	since, err := strconv.Atoi(r.URL.Query().Get("since"))
+	since, err := strconv.Atoi(string(query.Peek("since")))
 	if err != nil {
 		since = 0
 	}
-	sort := r.URL.Query().Get("sort")
+	sort := string(query.Peek("sort"))
 
-	desc, err := strconv.ParseBool(r.URL.Query().Get("desc"))
-	if err != nil {
-		desc = false
-	}
+	desc := query.GetBool("desc")
+	//if err != nil {
+	//	desc = false
+	//}
 
-	vars := mux.Vars(r)
-	slugOrID := vars["slug_or_id"]
+	slugOrID := ctx.UserValue("slug_or_id").(string)
 
 	var thread int
 	id, errInt := strconv.Atoi(slugOrID)
@@ -105,8 +102,8 @@ func ThreadPosts(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			w.WriteHeader(http.StatusNotFound)
-			w.Write(models.MarshalErrorSt("Can't find thread"))
+			ctx.SetStatusCode(fasthttp.StatusNotFound)
+			ctx.Write(models.MarshalErrorSt("Can't find thread"))
 			return
 		}
 		// log.Println(err)
@@ -125,78 +122,98 @@ func ThreadPosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write(body)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.Write(body)
 }
 
-func Details(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+func Details(ctx *fasthttp.RequestCtx) {
+	ctx.SetContentType("application/json")
 
-	vars := mux.Vars(r)
-	id, err := strconv.Atoi(vars["id"])
+	id, err := strconv.Atoi(ctx.UserValue("id").(string))
 	if err != nil {
 		// log.Println(err)
 		return
 	}
 
-	related := r.URL.Query().Get("related")
+	related := string(ctx.QueryArgs().Peek("related"))
 
 	post, err := postRep.FindByID(id)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			w.WriteHeader(http.StatusNotFound)
-			w.Write(models.MarshalErrorSt("Can't find post by id"))
+			ctx.SetStatusCode(fasthttp.StatusNotFound)
+			ctx.Write(models.MarshalErrorSt("Can't find post by id"))
 			return
 		}
 		// log.Println(err)
 		return
 	}
 
-	if r.Method == "GET" {
-		postFull := models.PostFull{}
-		if strings.Contains(related, "user") {
-			user, err := userRep.FindByNickname(post.Author)
-			if err != nil {
-				// log.Println(err)
-				return
-			}
-			postFull.Author = user
-		}
-
-		if strings.Contains(related, "forum") {
-			forum, err := forumRep.FindForum(post.Forum)
-			if err != nil {
-				// log.Println(err)
-				return
-			}
-			postFull.Forum = forum
-		}
-
-		if strings.Contains(related, "thread") {
-			thread, err := threadRep.FindThreadByID(post.Thread)
-			if err != nil {
-				// log.Println(err)
-				return
-			}
-			postFull.Thread = thread
-		}
-
-		postFull.Post = post
-
-		body, err := json.Marshal(postFull)
+	postFull := models.PostFull{}
+	if strings.Contains(related, "user") {
+		user, err := userRep.FindByNickname(post.Author)
 		if err != nil {
 			// log.Println(err)
 			return
 		}
+		postFull.Author = user
+	}
 
-		w.WriteHeader(http.StatusOK)
-		w.Write(body)
+	if strings.Contains(related, "forum") {
+		forum, err := forumRep.FindForum(post.Forum)
+		if err != nil {
+			// log.Println(err)
+			return
+		}
+		postFull.Forum = forum
+	}
+
+	if strings.Contains(related, "thread") {
+		thread, err := threadRep.FindThreadByID(post.Thread)
+		if err != nil {
+			// log.Println(err)
+			return
+		}
+		postFull.Thread = thread
+	}
+
+	postFull.Post = post
+
+	body, err := json.Marshal(postFull)
+	if err != nil {
+		// log.Println(err)
+		return
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.Write(body)
+	return
+
+}
+
+func DetailsPOST(ctx *fasthttp.RequestCtx) {
+	ctx.SetContentType("application/json")
+
+	id, err := strconv.Atoi(ctx.UserValue("id").(string))
+	if err != nil {
+		// log.Println(err)
+		return
+	}
+
+	post, err := postRep.FindByID(id)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			ctx.SetStatusCode(fasthttp.StatusNotFound)
+			ctx.Write(models.MarshalErrorSt("Can't find post by id"))
+			return
+		}
+		// log.Println(err)
 		return
 	}
 
 	postUpdate := models.PostUpdate{}
-	err = json.NewDecoder(r.Body).Decode(&postUpdate)
+	err = json.Unmarshal(ctx.PostBody(), &postUpdate)
 	if err != nil {
 		// log.Println(err)
 		return
@@ -214,6 +231,6 @@ func Details(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write(body)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.Write(body)
 }
