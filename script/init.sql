@@ -1,52 +1,53 @@
+CREATE EXTENSION IF NOT EXISTS CITEXT;
 CREATE UNLOGGED TABLE "users" (
-  "about" varchar NOT NULL,
-  "email" varchar NOT NULL,
-  "fullname" varchar NOT NULL,
-  "nickname" varchar PRIMARY KEY
+  "about" text NOT NULL,
+  "email" citext collate "C" NOT NULL,
+  "fullname" text NOT NULL,
+  "nickname" citext collate "C" PRIMARY KEY
 );
 
-CREATE INDEX index_users_all ON users (lower(nickname));
+CREATE INDEX index_users_all ON users (nickname);
 
 CREATE UNLOGGED TABLE "forums" (
-  "username" varchar NOT null,
+  "username" citext collate "C" NOT null,
   "posts" BIGINT DEFAULT 0,
   "threads" int DEFAULT 0,
-  "slug" varchar PRIMARY KEY,
-  "title" varchar NOT NULL,
+  "slug" citext collate "C" PRIMARY KEY,
+  "title" TEXT NOT NULL,
   FOREIGN KEY ("username") REFERENCES "users" (nickname)
 );
 
-CREATE INDEX index_forums_slug ON forums (lower(slug));
-CREATE INDEX index_users_fk ON forums (lower(author));
+CREATE INDEX index_forums_slug ON forums (slug);
+CREATE INDEX index_users_fk ON forums (username);
 -- CREATE INDEX index_forum_all ON forums (slug, title, author, posts, threads);
 
 CREATE UNLOGGED TABLE "threads" (
   "id" SERIAL PRIMARY KEY,
-  "author" varchar NOT NULL,
+  "author" citext collate "C" NOT NULL,
   "created" timestamptz DEFAULT now(),
-  "forum" varchar NOT NULL,
-  "message" varchar NOT NULL,
-  "slug" varchar,
-  "title" varchar NOT NULL,
+  "forum" citext collate "C" NOT NULL,
+  "message" TEXT NOT NULL,
+  "slug" citext collate "C",
+  "title" TEXT NOT NULL,
   "votes" int DEFAULT 0,
   FOREIGN KEY (author) REFERENCES "users" (nickname)
 --   FOREIGN KEY (forum) REFERENCES "forums" (slug)
 );
 
-CREATE INDEX index_threads_slug ON threads (lower(slug));
-CREATE INDEX index_thread_slug_hash ON threads USING hash (lower(slug));
-CREATE INDEX index_thread_users_fk ON threads (lower(author));
+CREATE INDEX index_threads_slug ON threads (slug);
+CREATE INDEX index_thread_slug_hash ON threads USING hash (slug);
+CREATE INDEX index_thread_users_fk ON threads (author);
 -- CREATE INDEX index_thread_forum_fk ON threads (forum);
-CREATE INDEX index_thread_forum_created ON threads (lower(forum), created);
+CREATE INDEX index_thread_forum_created ON threads (forum, created);
 -- CREATE INDEX index_thread_all ON threads (title, message, created, slug, author, forum, votes);
 
 CREATE UNLOGGED TABLE "posts" (
-  "author" varchar NOT NULL,
+  "author" citext collate "C" NOT NULL,
   "created" timestamp DEFAULT now(),
-  "forum" varchar NOT NULL,
+  "forum" citext collate "C" NOT NULL,
   "id" BIGSERIAL PRIMARY KEY,
   "is_edited" BOOL DEFAULT false,
-  "message" varchar NOT NULL,
+  "message" TEXT NOT NULL,
   "parent" BIGINT DEFAULT 0,
   "thread" int,
   "path" BIGINT[] DEFAULT ARRAY []::INTEGER[],
@@ -58,17 +59,17 @@ CREATE UNLOGGED TABLE "posts" (
 );
 
 CREATE INDEX index_posts_thread ON posts (thread);
-CREATE INDEX index_posts_author ON posts (thread, id, path);
-CREATE INDEX index_posts_author ON posts (thread, path);
-CREATE INDEX index_posts_author ON posts (thread, (path[1]));
-CREATE INDEX index_posts_author ON posts (thread, parent);
+CREATE INDEX index_posts_authorid ON posts (thread, id, path);
+CREATE INDEX index_posts_authorp ON posts (thread, path);
+CREATE INDEX index_posts_authorpp ON posts (thread, (path[1]));
+CREATE INDEX index_posts_authortp ON posts (thread, parent);
 -- CREATE INDEX index_post_thread_parent_path ON posts (thread, parent, path);
 CREATE INDEX index_post_path1_path ON posts ((path[1]), path);
 -- CREATE INDEX index_post_forum_fk ON posts (forum);
 -- CREATE INDEX index_post_thread_created_id ON posts (thread, created, id);
 
 CREATE UNLOGGED TABLE "votes" (
-  "nickname" varchar NOT NULL,
+  "nickname" citext collate "C" NOT NULL,
   "voice" int,
   "thread" int,
   
@@ -77,16 +78,16 @@ CREATE UNLOGGED TABLE "votes" (
    UNIQUE (nickname, thread)
 );
 
-CREATE INDEX index_votes_thread_nick ON votes (thread, lower(nickname));
+CREATE INDEX index_votes_thread_nick ON votes (thread, nickname);
 
 CREATE UNLOGGED TABLE forum_users
 (
-    author varchar REFERENCES users (nickname) ON DELETE CASCADE NOT NULL,
+    author citext collate "C" REFERENCES users (nickname) ON DELETE CASCADE NOT NULL,
 --     slug   varchar REFERENCES forums (slug) ON DELETE CASCADE NOT NULL,
-    slug   varchar NOT NULL,
+    slug   citext collate "C" NOT NULL,
     UNIQUE (author, slug)
 );
-CREATE INDEX on forum_users (lower(slug));
+CREATE INDEX on forum_users (slug);
 
 CREATE OR REPLACE FUNCTION update_threads_count() RETURNS TRIGGER AS
 $update_users_forum$
@@ -137,7 +138,7 @@ BEGIN
 
         NEW.path := parent_path || NEW.id;
     END IF;
-    UPDATE forums SET Posts=Posts + 1 WHERE lower(forums.slug) = lower(new.forum);
+    UPDATE forums SET Posts=Posts + 1 WHERE forums.slug = new.forum;
     RETURN NEW;
 END
 $update_path$ LANGUAGE plpgsql;

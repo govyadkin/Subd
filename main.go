@@ -3,8 +3,8 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	//"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/valyala/fasthttp/pprofhandler"
 	"log"
 	"subd/dz/models"
 	"subd/dz/server/forum"
@@ -39,6 +39,8 @@ func main() {
 	models.DB = DBConnection()
 
 	router := router.New()
+
+	router.GET("/debug/pprof/profile", pprofhandler.PprofHandler)
 
 	router.POST("/api/forum/create", forum.Create)
 	router.GET("/api/forum/{slug}/details", forum.Details)
