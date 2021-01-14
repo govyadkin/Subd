@@ -16,8 +16,8 @@ import (
 )
 
 func DBConnection() *sql.DB {
-	//connString := "host=localhost user=misha password=password dbname=subdproject sslmode=disable"
-	connString := "host=localhost user=password password=password dbname=password1 sslmode=disable"
+	connString := "host=localhost user=misha password=password dbname=subdproject sslmode=disable"
+	//connString := "host=localhost user=password password=password dbname=password1 sslmode=disable"
 /*SELECT s.schemaname,
          s.relname AS tablename,
          s.indexrelname AS indexname,
