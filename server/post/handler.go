@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	json "github.com/mailru/easyjson"
 	"github.com/valyala/fasthttp"
+	"log"
 	"strconv"
 	"strings"
 	"subd/dz/models"
@@ -35,14 +36,14 @@ func Create(ctx *fasthttp.RequestCtx) {
 			ctx.Write(models.MarshalErrorSt("Can't find post thread"))
 			return
 		}
-		// log.Println(err)
+		log.Println("1",err)
 		return
 	}
 
 	posts := models.Posts{}
 	err = json.Unmarshal(ctx.PostBody(), &posts)
 	if err != nil {
-		// log.Println(err)
+		log.Println("2",err)
 		ctx.SetStatusCode(fasthttp.StatusCreated)
 		ctx.Write([]byte("[]"))
 		return
@@ -63,7 +64,7 @@ func Create(ctx *fasthttp.RequestCtx) {
 
 	body, err := json.Marshal(posts)
 	if err != nil {
-		// log.Println(err)
+		log.Println(err)
 		return
 	}
 
@@ -106,19 +107,19 @@ func ThreadPosts(ctx *fasthttp.RequestCtx) {
 			ctx.Write(models.MarshalErrorSt("Can't find thread"))
 			return
 		}
-		// log.Println(err)
+		log.Println(err)
 		return
 	}
 
 	posts, err := postRep.FindPosts(thread, limit, since, sort, desc)
 	if err != nil {
-		// log.Println(err)
+		log.Println(err)
 		return
 	}
 
 	body, err := json.Marshal(posts)
 	if err != nil {
-		// log.Println(err)
+		log.Println(err)
 		return
 	}
 
@@ -131,7 +132,7 @@ func Details(ctx *fasthttp.RequestCtx) {
 
 	id, err := strconv.Atoi(ctx.UserValue("id").(string))
 	if err != nil {
-		// log.Println(err)
+		log.Println(err)
 		return
 	}
 
@@ -145,7 +146,7 @@ func Details(ctx *fasthttp.RequestCtx) {
 			ctx.Write(models.MarshalErrorSt("Can't find post by id"))
 			return
 		}
-		// log.Println(err)
+		log.Println(err)
 		return
 	}
 
@@ -153,7 +154,7 @@ func Details(ctx *fasthttp.RequestCtx) {
 	if strings.Contains(related, "user") {
 		user, err := userRep.FindByNickname(post.Author)
 		if err != nil {
-			// log.Println(err)
+			log.Println(err)
 			return
 		}
 		postFull.Author = user
@@ -162,7 +163,7 @@ func Details(ctx *fasthttp.RequestCtx) {
 	if strings.Contains(related, "forum") {
 		forum, err := forumRep.FindForum(post.Forum)
 		if err != nil {
-			// log.Println(err)
+			log.Println(err)
 			return
 		}
 		postFull.Forum = forum
@@ -171,7 +172,7 @@ func Details(ctx *fasthttp.RequestCtx) {
 	if strings.Contains(related, "thread") {
 		thread, err := threadRep.FindThreadByID(post.Thread)
 		if err != nil {
-			// log.Println(err)
+			log.Println(err)
 			return
 		}
 		postFull.Thread = thread
@@ -181,7 +182,7 @@ func Details(ctx *fasthttp.RequestCtx) {
 
 	body, err := json.Marshal(postFull)
 	if err != nil {
-		// log.Println(err)
+		log.Println(err)
 		return
 	}
 
@@ -196,7 +197,7 @@ func DetailsPOST(ctx *fasthttp.RequestCtx) {
 
 	id, err := strconv.Atoi(ctx.UserValue("id").(string))
 	if err != nil {
-		// log.Println(err)
+		log.Println(err)
 		return
 	}
 
@@ -208,26 +209,26 @@ func DetailsPOST(ctx *fasthttp.RequestCtx) {
 			ctx.Write(models.MarshalErrorSt("Can't find post by id"))
 			return
 		}
-		// log.Println(err)
+		log.Println(err)
 		return
 	}
 
 	postUpdate := models.PostUpdate{}
 	err = json.Unmarshal(ctx.PostBody(), &postUpdate)
 	if err != nil {
-		// log.Println(err)
+		log.Println(err)
 		return
 	}
 
 	err = postRep.UpdatePost(post, postUpdate)
 	if err != nil {
-		// log.Println(err)
+		log.Println(err)
 		return
 	}
 
 	body, err := json.Marshal(post)
 	if err != nil {
-		// log.Println(err)
+		log.Println(err)
 		return
 	}
 
