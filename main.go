@@ -16,8 +16,8 @@ import (
 )
 
 func DBConnection() *sql.DB {
-	connString := "host=localhost user=misha password=password dbname=subdproject sslmode=disable"
-	//connString := "host=localhost user=password password=password dbname=password1 sslmode=disable"
+	//connString := "host=localhost user=misha password=password dbname=subdproject sslmode=disable"
+	connString := "host=localhost user=password password=password dbname=password1 sslmode=disable"
 /*SELECT s.schemaname,
          s.relname AS tablename,
          s.indexrelname AS indexname,
@@ -39,11 +39,6 @@ func DBConnection() *sql.DB {
 	         s.idx_scan
 	  FROM pg_catalog.pg_stat_user_indexes s
 	     JOIN pg_catalog.pg_index i ON s.indexrelid = i.indexrelid
-	  WHERE 0 <>ALL (i.indkey)  -- no index column is an expression
-	    AND NOT i.indisunique   -- is not a UNIQUE index
-	    AND NOT EXISTS          -- does not enforce a constraint
-	           (SELECT 1 FROM pg_catalog.pg_constraint c
-	            WHERE c.conindid = s.indexrelid)
 	  ORDER BY pg_relation_size(s.indexrelid) DESC;*/
 	db, err := sql.Open("postgres", connString)
 	if err != nil {
