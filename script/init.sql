@@ -1,15 +1,15 @@
--- DROP TABLE users CASCADE;
--- DROP TABLE forums CASCADE;
--- DROP TABLE threads CASCADE;
--- DROP TABLE posts CASCADE;
--- DROP TABLE votes CASCADE;
--- DROP TABLE forum_users CASCADE;
---
--- DROP FUNCTION update_threads_count() CASCADE;
--- DROP FUNCTION update_forum_users_by_insert_th_or_post() CASCADE;
--- DROP FUNCTION update_path() CASCADE;
--- DROP FUNCTION insert_votes() CASCADE;
--- DROP FUNCTION update_votes() CASCADE;
+DROP TABLE users CASCADE;
+DROP TABLE forums CASCADE;
+DROP TABLE threads CASCADE;
+DROP TABLE posts CASCADE;
+DROP TABLE votes CASCADE;
+DROP TABLE forum_users CASCADE;
+
+DROP FUNCTION update_threads_count() CASCADE;
+DROP FUNCTION update_forum_users_by_insert_th_or_post() CASCADE;
+DROP FUNCTION update_path() CASCADE;
+DROP FUNCTION insert_votes() CASCADE;
+DROP FUNCTION update_votes() CASCADE;
 
 CREATE EXTENSION IF NOT EXISTS CITEXT;
 CREATE UNLOGGED TABLE "users" (
@@ -19,7 +19,7 @@ CREATE UNLOGGED TABLE "users" (
   "nickname" citext collate "C" PRIMARY KEY
 );
 
-CREATE INDEX index_users_all ON users (nickname);
+-- CREATE INDEX index_users_all ON users (nickname);
 CREATE INDEX index_users_allH ON users USING hash (nickname);
 
 CREATE UNLOGGED TABLE "forums" (
@@ -73,25 +73,22 @@ CREATE UNLOGGED TABLE "posts" (
 --   FOREIGN KEY (parent) REFERENCES "posts" (id)
 );
 
-CREATE INDEX index_posts_thread ON posts (thread);
 CREATE INDEX index_posts_authorid ON posts (thread, id, path);
 CREATE INDEX index_posts_authorp ON posts (thread, path);
-CREATE INDEX index_posts_authorpp ON posts (thread, (path[1]));
-CREATE INDEX index_posts_authortp ON posts (thread, parent);
 CREATE INDEX index_post_path1_path ON posts ((path[1]), path);
 CREATE INDEX index_post_thread_created_id ON posts (thread, created, id);
 
 CREATE UNLOGGED TABLE "votes" (
+  "thread" int,
   "nickname" citext collate "C" NOT NULL,
   "voice" int,
-  "thread" int,
   
    FOREIGN KEY (nickname) REFERENCES "users" (nickname),
 --    FOREIGN KEY (thread) REFERENCES "threads" (id),
    UNIQUE (nickname, thread)
 );
 
-CREATE INDEX index_votes_thread_nick ON votes (thread, nickname);
+-- CREATE INDEX index_votes_thread_nick ON votes (thread, nickname);
 
 CREATE UNLOGGED TABLE forum_users
 (

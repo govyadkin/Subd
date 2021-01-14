@@ -25,7 +25,7 @@ func FindForum(slug string) (*models.Forum, error) {
 
 func ClearForum() error {
 	var err error
-	_, err = models.DB.Exec("TRUNCATE forums, posts, threads, users, votes CASCADE;")
+	_, err = models.DB.Exec("TRUNCATE forums, posts, threads, users, votes, forum_users CASCADE;")
 	return err
 }
 
