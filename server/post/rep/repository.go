@@ -38,6 +38,12 @@ func InsertPosts(pos *models.Posts, id int, forum string) error {
 		i++
 	}
 
+	//_, err = models.DB.Exec("UPDATE forums SET Posts=(Posts + $1) WHERE slug = $2;", len(*pos), forum)
+	//if err != nil {
+	//	log.Println(err)
+	//	return err
+	//}
+
 	_, err = models.DB.Exec("INSERT INTO forum_users (slug, author) VALUES" + authors[:len(authors)-1] + " ON CONFLICT DO NOTHING;")
 
 	return err

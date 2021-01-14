@@ -1,3 +1,16 @@
+-- DROP TABLE users CASCADE;
+-- DROP TABLE forums CASCADE;
+-- DROP TABLE threads CASCADE;
+-- DROP TABLE posts CASCADE;
+-- DROP TABLE votes CASCADE;
+-- DROP TABLE forum_users CASCADE;
+--
+-- DROP FUNCTION update_threads_count() CASCADE;
+-- DROP FUNCTION update_forum_users_by_insert_th_or_post() CASCADE;
+-- DROP FUNCTION update_path() CASCADE;
+-- DROP FUNCTION insert_votes() CASCADE;
+-- DROP FUNCTION update_votes() CASCADE;
+
 CREATE EXTENSION IF NOT EXISTS CITEXT;
 CREATE UNLOGGED TABLE "users" (
   "about" text NOT NULL,
@@ -7,6 +20,7 @@ CREATE UNLOGGED TABLE "users" (
 );
 
 CREATE INDEX index_users_all ON users (nickname);
+CREATE INDEX index_users_allH ON users USING hash (nickname);
 
 CREATE UNLOGGED TABLE "forums" (
   "username" citext collate "C" NOT null,
@@ -17,8 +31,8 @@ CREATE UNLOGGED TABLE "forums" (
   FOREIGN KEY ("username") REFERENCES "users" (nickname)
 );
 
-CREATE INDEX index_forums_slug ON forums (slug);
-CREATE INDEX index_users_fk ON forums (username);
+CREATE INDEX index_forums_slug ON forums USING hash (slug);
+-- CREATE INDEX index_users_fk ON forums (username);
 -- CREATE INDEX index_forum_all ON forums (slug, title, author, posts, threads);
 
 CREATE UNLOGGED TABLE "threads" (
@@ -34,10 +48,11 @@ CREATE UNLOGGED TABLE "threads" (
 --   FOREIGN KEY (forum) REFERENCES "forums" (slug)
 );
 
-CREATE INDEX index_threads_slug ON threads (slug);
+-- CREATE INDEX index_threads_slug ON threads (slug);
 CREATE INDEX index_thread_slug_hash ON threads USING hash (slug);
-CREATE INDEX index_thread_users_fk ON threads (author);
+-- CREATE INDEX index_thread_users_fk ON threads (author);
 -- CREATE INDEX index_thread_forum_fk ON threads (forum);
+
 CREATE INDEX index_thread_forum_created ON threads (forum, created);
 -- CREATE INDEX index_thread_all ON threads (title, message, created, slug, author, forum, votes);
 
@@ -63,10 +78,8 @@ CREATE INDEX index_posts_authorid ON posts (thread, id, path);
 CREATE INDEX index_posts_authorp ON posts (thread, path);
 CREATE INDEX index_posts_authorpp ON posts (thread, (path[1]));
 CREATE INDEX index_posts_authortp ON posts (thread, parent);
--- CREATE INDEX index_post_thread_parent_path ON posts (thread, parent, path);
 CREATE INDEX index_post_path1_path ON posts ((path[1]), path);
--- CREATE INDEX index_post_forum_fk ON posts (forum);
--- CREATE INDEX index_post_thread_created_id ON posts (thread, created, id);
+CREATE INDEX index_post_thread_created_id ON posts (thread, created, id);
 
 CREATE UNLOGGED TABLE "votes" (
   "nickname" citext collate "C" NOT NULL,
@@ -83,16 +96,15 @@ CREATE INDEX index_votes_thread_nick ON votes (thread, nickname);
 CREATE UNLOGGED TABLE forum_users
 (
     author citext collate "C" REFERENCES users (nickname) ON DELETE CASCADE NOT NULL,
---     slug   varchar REFERENCES forums (slug) ON DELETE CASCADE NOT NULL,
     slug   citext collate "C" NOT NULL,
     UNIQUE (author, slug)
 );
-CREATE INDEX on forum_users (slug);
+-- CREATE INDEX on forum_users (slug);
 
 CREATE OR REPLACE FUNCTION update_threads_count() RETURNS TRIGGER AS
 $update_users_forum$
 BEGIN
-    UPDATE forums SET Threads=(Threads+1) WHERE LOWER(slug)=LOWER(NEW.forum);
+    UPDATE forums SET Threads=(Threads+1) WHERE slug=NEW.forum;
     return NEW;
 END
 $update_users_forum$ LANGUAGE plpgsql;

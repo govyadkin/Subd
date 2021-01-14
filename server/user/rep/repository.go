@@ -14,13 +14,13 @@ func Create(user models.User) error {
 
 func CheckByEmail(email string) bool {
 	var mail string
-	err := models.DB.QueryRow("SELECT email FROM users WHERE email ILIKE $1;", email).Scan(&mail)
+	err := models.DB.QueryRow("SELECT email FROM users WHERE email = $1;", email).Scan(&mail)
 	return err == nil
 }
 
 func CheckByNickname(nickname string) bool {
 	var name string
-	err := models.DB.QueryRow("SELECT nickname FROM users WHERE nickname ILIKE $1;", nickname).Scan(&name)
+	err := models.DB.QueryRow("SELECT nickname FROM users WHERE nickname = $1;", nickname).Scan(&name)
 	return err == nil
 }
 
@@ -28,7 +28,7 @@ func ConflictUsers(email, nickname string) (*models.Users, error) {
 	users := models.Users{}
 	user := models.User{}
 
-	rows, err := models.DB.Query("SELECT about, email, fullname, nickname FROM users WHERE nickname ILIKE $2 OR email ILIKE $1;", email, nickname)
+	rows, err := models.DB.Query("SELECT about, email, fullname, nickname FROM users WHERE nickname = $2 OR email = $1;", email, nickname)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func ConflictUsers(email, nickname string) (*models.Users, error) {
 	return &users, nil
 }
 func CheckByNicknameR(nickname string) (string, error) {
-	err := models.DB.QueryRow("SELECT nickname FROM users WHERE nickname ILIKE $1;", nickname).
+	err := models.DB.QueryRow("SELECT nickname FROM users WHERE nickname = $1;", nickname).
 		Scan(&nickname)
 
 	return nickname, err
@@ -55,7 +55,7 @@ func CheckByNicknameR(nickname string) (string, error) {
 func FindByNickname(nickname string) (*models.User, error) {
 	user := models.User{}
 
-	err := models.DB.QueryRow("SELECT about, email, fullname, nickname FROM users WHERE nickname ILIKE $1;", nickname).
+	err := models.DB.QueryRow("SELECT about, email, fullname, nickname FROM users WHERE nickname = $1;", nickname).
 		Scan(&user.About, &user.Email, &user.Fullname, &user.Nickname)
 
 	return &user, err
@@ -92,12 +92,12 @@ func UpdateUser(nickname string, userUpdate models.UserUpdate) (*models.User, er
 	user.Nickname = nickname
 
 	if i > 1 {
-		sqlRow := "UPDATE users SET" + s + " WHERE nickname ILIKE $" + fmt.Sprint(i) + " RETURNING fullname, about, email;"
+		sqlRow := "UPDATE users SET" + s + " WHERE nickname = $" + fmt.Sprint(i) + " RETURNING fullname, about, email;"
 		values = append(values, nickname)
 		err := models.DB.QueryRow(sqlRow, values...).Scan(&user.Fullname, &user.About, &user.Email)
 		return &user, err
 	} else {
-		err := models.DB.QueryRow("SELECT about, email, fullname FROM users WHERE nickname ILIKE $1;", nickname).
+		err := models.DB.QueryRow("SELECT about, email, fullname FROM users WHERE nickname = $1;", nickname).
 			Scan(&user.About, &user.Email, &user.Fullname)
 		return &user, err
 	}
@@ -113,16 +113,16 @@ func FindByForum(slug, since string, limit int, desc bool) (*models.Users, error
 		descS = "DESC "
 	}
 	sqlRek := "SELECT users.about, users.email, users.fullname, users.nickname FROM forum_users " +
-		"JOIN users ON LOWER(users.nickname) = LOWER(forum_users.author) WHERE slug ILIKE $1 "
+		"JOIN users ON users.nickname = forum_users.author WHERE slug = $1 "
 
 	values := make([]interface{}, 0, 2)
 
 	values = append(values, slug)
 	if since != "" {
-		sqlRek += fmt.Sprintf(`AND LOWER(users.nickname) %c LOWER($2) COLLATE "C" `, symb)
+		sqlRek += fmt.Sprintf(`AND users.nickname %c $2 COLLATE "C" `, symb)
 		values = append(values, since)
 	}
-	sqlRek += fmt.Sprintf(`ORDER BY LOWER(users.nickname) COLLATE "C" %sLIMIT %d;`, descS, limit)
+	sqlRek += fmt.Sprintf(`ORDER BY users.nickname COLLATE "C" %sLIMIT %d;`, descS, limit)
 
 	rows, err := models.DB.Query(sqlRek, values...)
 	if err != nil {
